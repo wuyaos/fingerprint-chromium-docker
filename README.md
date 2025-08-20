@@ -19,7 +19,11 @@
 本地构建：
 
 ```bash
+# Alpine版本（默认，更小的镜像）
 docker build -t wuyaos/fingerprint-chromium-docker:latest .
+
+# Ubuntu版本（更好的兼容性）
+docker build -f Dockerfile.ubuntu -t wuyaos/fingerprint-chromium-docker:ubuntu .
 ```
 
 运行容器：
@@ -113,10 +117,11 @@ docker run -d --name fpc \
 
 本仓库包含 .github/workflows/docker-build.yml，功能如下：
 
-- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本
+- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本和基础镜像
+- 支持Alpine和Ubuntu两种基础镜像
 - 推送到Docker Hub：`wuyaos/fingerprint-chromium-docker`
-- 目标平台：linux/amd64
-- 提供标签：latest、git标签、sha
+- 目标平台：linux/amd64（已移除QEMU以提高构建速度）
+- 提供标签：latest（Alpine）、latest-ubuntu（Ubuntu）、git标签、sha
 
 所需的GitHub仓库密钥：
 
@@ -131,3 +136,4 @@ docker run -d --name fpc \
 
 - fingerprint-chromium Linux制品在构建时下载；如需更新版本请修改Dockerfile中的FC_VERSION
 - Alpine使用musl，我们通过sgerrand包安装glibc以满足Chromium运行时要求
+- Ubuntu版本提供更好的兼容性，但镜像体积较大
