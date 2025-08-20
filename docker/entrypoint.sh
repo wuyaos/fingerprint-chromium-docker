@@ -23,11 +23,20 @@ CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
 USER_DIR=${USER_DIR:-/data}
 PROFILE_DIR=${PROFILE_DIR:-/profiles/default}
 
+# Create directories with proper permissions
 mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
+chmod 755 "${USER_DIR}" "${PROFILE_DIR}"
 
-# Start Xvfb
-/usr/bin/Xvfb ${XVFB_DISPLAY} -screen 0 ${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH} &
+# Create X11 socket directory if it doesn't exist
+sudo mkdir -p /tmp/.X11-unix || true
+sudo chmod 1777 /tmp/.X11-unix || true
+
+# Start Xvfb with proper permissions
+/usr/bin/Xvfb ${XVFB_DISPLAY} -screen 0 ${SCREEN_WIDTH}x${SCREEN_HEIGHT}x${SCREEN_DEPTH} -ac +extension GLX +render -noreset &
 XVFB_PID=$!
+
+# Wait for X server to start
+sleep 2
 
 # Start window manager (optional but helps rendering)
 openbox &
@@ -66,7 +75,13 @@ CHROME_FLAGS=(
   "--disable-gpu"
   "--disable-software-rasterizer"
   "--disable-setuid-sandbox"
+  "--disable-background-timer-throttling"
+  "--disable-backgrounding-occluded-windows"
+  "--disable-renderer-backgrounding"
+  "--disable-features=TranslateUI"
+  "--disable-ipc-flooding-protection"
   "--window-size=${SCREEN_WIDTH},${SCREEN_HEIGHT}"
+  "--force-device-scale-factor=1"
 )
 
 # Merge extra args

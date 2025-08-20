@@ -38,7 +38,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       curl ca-certificates xz-utils \
-      tzdata locales \
+      tzdata locales sudo \
       xvfb x11vnc openbox \
       novnc websockify \
       fonts-dejavu fonts-liberation fonts-noto fonts-noto-cjk \
@@ -67,10 +67,12 @@ RUN set -eux; \
     # Ensure executable permissions
     chmod +x /opt/fingerprint-chromium/chrome || true
 
-# ------- Create non-root user -------
+# ------- Create non-root user with sudo access -------
 RUN set -eux; \
     useradd -m -s /bin/bash browser; \
-    mkdir -p /home/browser/Downloads /data /profiles; \
+    echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod" >> /etc/sudoers; \
+    mkdir -p /home/browser/Downloads /data /profiles /tmp/.X11-unix; \
+    chmod 1777 /tmp/.X11-unix; \
     chown -R browser:browser /home/browser /data /profiles /opt/fingerprint-chromium
 
 # ------- Copy startup scripts -------
