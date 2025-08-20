@@ -30,31 +30,45 @@ ENV LANG=en_US.UTF-8 \
     CHROME_EXTRA_ARGS="" \
     REMOTE_DEBUGGING_PORT=9222
 
-# ------- Install basic tools, glibc and runtime deps -------
-# Install glibc from sgerrand (Chromium requires glibc; Alpine uses musl)
+# ------- Install basic tools and dependencies -------
 RUN set -eux; \
     apk add --no-cache --virtual .build-deps curl tar ca-certificates binutils xz; \
     apk add --no-cache tzdata bash su-exec shadow; \
-    # glibc from sgerrand
+    update-ca-certificates; \
+    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
+
+# ------- Install glibc from sgerrand (exclude gcompat to avoid conflicts) -------
+RUN set -eux; \
     GLIBC_VER=2.35-r1; \
     curl -fsSL -o /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub; \
     curl -fsSL -o /tmp/glibc.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk; \
     curl -fsSL -o /tmp/glibc-bin.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk; \
     apk add --no-cache /tmp/glibc.apk /tmp/glibc-bin.apk; \
-    # Common Chromium runtime deps on Alpine
+    rm -f /tmp/glibc*.apk
+
+# ------- Install X11 and VNC dependencies -------
+RUN set -eux; \
     apk add --no-cache \
-      xorg-server-xvfb x11vnc openbox ttf-dejavu ttf-liberation font-noto-emoji font-noto-cjk \
+      xvfb x11vnc openbox \
       novnc websockify \
+      unzip
+
+# ------- Install fonts -------
+RUN set -eux; \
+    apk add --no-cache \
+      ttf-dejavu ttf-liberation \
+      font-noto font-noto-cjk \
+      ttf-freefont
+
+# ------- Install Chromium runtime dependencies (minimal set to avoid gcompat) -------
+RUN set -eux; \
+    apk add --no-cache \
       nss freetype harfbuzz \
       libx11 libxcomposite libxdamage libxi libxrandr libxrender libxtst \
       libxext libxfixes libxkbcommon \
       libdrm libgbm mesa-gl \
-      alsa-lib at-spi2-core gtk+3.0 \
-      udev ttf-freefont \
-      unzip; \
-    update-ca-certificates; \
-    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config; \
-    rm -rf /var/cache/apk/* /tmp/*.apk
+      alsa-lib; \
+    rm -rf /var/cache/apk/*
 
 # ------- Download fingerprint-chromium -------
 RUN set -eux; \
