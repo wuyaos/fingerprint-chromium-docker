@@ -10,11 +10,11 @@ on:
       BASE_IMAGE:
         description: "Base image type"
         required: true
-        default: "alpine"
+        default: "ubuntu"
         type: choice
         options:
-          - alpine
           - ubuntu
+          - alpine
 
 jobs:
   build:

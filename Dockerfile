@@ -32,19 +32,25 @@ ENV LANG=en_US.UTF-8 \
 
 # ------- Install basic tools and dependencies -------
 RUN set -eux; \
-    apk add --no-cache --virtual .build-deps curl tar ca-certificates binutils xz; \
+    apk add --no-cache --virtual .build-deps curl wget tar ca-certificates binutils xz; \
     apk add --no-cache tzdata bash su-exec shadow; \
     update-ca-certificates; \
     mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
 
-# ------- Install glibc from sgerrand (exclude gcompat to avoid conflicts) -------
+# ------- Try alternative glibc installation method -------
 RUN set -eux; \
-    GLIBC_VER=2.35-r1; \
-    curl -fsSL -o /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub; \
-    curl -fsSL -o /tmp/glibc.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk; \
-    curl -fsSL -o /tmp/glibc-bin.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk; \
-    apk add --no-cache /tmp/glibc.apk /tmp/glibc-bin.apk; \
-    rm -f /tmp/glibc*.apk
+    # Try using gcompat first (simpler approach)
+    apk add --no-cache gcompat || { \
+        # Fallback to sgerrand glibc if gcompat fails
+        GLIBC_VER=2.34-r0; \
+        wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub || true; \
+        wget -q -O /tmp/glibc.apk "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk" || true; \
+        wget -q -O /tmp/glibc-bin.apk "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk" || true; \
+        if [ -f /tmp/glibc.apk ]; then \
+            apk add --no-cache --allow-untrusted /tmp/glibc.apk /tmp/glibc-bin.apk; \
+        fi; \
+        rm -f /tmp/glibc*.apk; \
+    }
 
 # ------- Install X11 and VNC dependencies -------
 RUN set -eux; \
