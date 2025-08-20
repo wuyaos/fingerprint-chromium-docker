@@ -19,7 +19,7 @@
 本地构建：
 
 ```bash
-docker build -t yourname/fingerprint-chromium-drission:latest .
+docker build -t wuyaos/fingerprint-chromium-docker:latest .
 ```
 
 运行容器：
@@ -28,7 +28,16 @@ docker build -t yourname/fingerprint-chromium-drission:latest .
 docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
   -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
-  --name fpc yourname/fingerprint-chromium-drission:latest
+  --name fpc wuyaos/fingerprint-chromium-docker:latest
+```
+
+或直接使用Docker Hub镜像：
+
+```bash
+docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
+  -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
+  -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
+  --name fpc wuyaos/fingerprint-chromium-docker:latest
 ```
 
 在浏览器中打开noVNC界面：
@@ -59,7 +68,7 @@ docker run -d --name fpc \
   -p 9222:9222 -p 6081:6081 \
   -e VNC_PASSWORD=changeme \
   -v $(pwd)/data:/data \
-  yourname/fingerprint-chromium-drission:latest
+  wuyaos/fingerprint-chromium-docker:latest
 ```
 
 ## 配置说明
@@ -105,15 +114,14 @@ docker run -d --name fpc \
 本仓库包含 .github/workflows/docker-build.yml，功能如下：
 
 - 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本
-- 推送到GHCR，如果配置了DOCKERHUB_*密钥则同时推送到Docker Hub
+- 推送到Docker Hub：`wuyaos/fingerprint-chromium-docker`
 - 目标平台：linux/amd64
-- 提供标签：默认分支的latest、git标签、sha
+- 提供标签：latest、git标签、sha
 
-Docker Hub所需的仓库密钥（可选）：
+所需的GitHub仓库密钥：
 
-- DOCKERHUB_REPO (例如 docker.io/yourname/fingerprint-chromium-drission)
-- DOCKERHUB_USERNAME
-- DOCKERHUB_TOKEN
+- DOCKERHUB_USERNAME (您的Docker Hub用户名)
+- DOCKERHUB_TOKEN (Docker Hub访问令牌)
 
 ## 健康检查
 
