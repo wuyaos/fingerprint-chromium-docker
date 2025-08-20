@@ -1,0 +1,83 @@
+# syntax=docker/dockerfile:1.6
+# Ubuntu-based image with fingerprint-chromium, Xvfb, VNC, noVNC
+
+ARG UBUNTU_VERSION=22.04
+FROM ubuntu:${UBUNTU_VERSION}
+
+# ------- Build args & envs -------
+ARG FC_VERSION=136.0.7103.113
+ARG FC_TARBALL="ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz"
+ARG FC_URL="https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/${FC_TARBALL}"
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    DISPLAY=:0 \
+    SCREEN_WIDTH=1280 \
+    SCREEN_HEIGHT=800 \
+    SCREEN_DEPTH=24 \
+    VNC_PASSWORD=changeme \
+    TZ=Asia/Shanghai \
+    TIMEZONE=Asia/Shanghai \
+    FINGERPRINT_SEED=1000 \
+    FINGERPRINT_PLATFORM=linux \
+    FINGERPRINT_BRAND=Chrome \
+    FINGERPRINT_BRAND_VERSION="" \
+    ACCEPT_LANG="zh-CN,zh" \
+    BROWSER_LANG="zh-CN" \
+    PROXY_SERVER="" \
+    CHROME_EXTRA_ARGS="" \
+    REMOTE_DEBUGGING_PORT=9222
+
+# ------- Install dependencies -------
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      curl ca-certificates xz-utils \
+      tzdata locales \
+      xvfb x11vnc openbox \
+      novnc websockify \
+      fonts-dejavu fonts-liberation fonts-noto fonts-noto-cjk \
+      libnss3 libfreetype6 libharfbuzz0b \
+      libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
+      libxext6 libxfixes3 libxkbcommon0 \
+      libdrm2 libgbm1 libgl1-mesa-glx \
+      libasound2 libatk-bridge2.0-0 libgtk-3-0 \
+      udev; \
+    # Set up locale
+    locale-gen en_US.UTF-8; \
+    # Clean up
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
+    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
+
+# ------- Download fingerprint-chromium -------
+RUN set -eux; \
+    echo "Downloading fingerprint-chromium ${FC_VERSION} from ${FC_URL}"; \
+    curl -fL "${FC_URL}" -o /tmp/fc.tar.xz; \
+    mkdir -p /opt/fingerprint-chromium; \
+    tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1; \
+    rm -f /tmp/fc.tar.xz; \
+    # Link main binary as chrome for convenience
+    if [ -f /opt/fingerprint-chromium/chrome ]; then ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome; fi; \
+    # Ensure executable permissions
+    chmod +x /opt/fingerprint-chromium/chrome || true
+
+# ------- Create non-root user -------
+RUN set -eux; \
+    useradd -m -s /bin/bash browser; \
+    mkdir -p /home/browser/Downloads /data /profiles; \
+    chown -R browser:browser /home/browser /data /profiles /opt/fingerprint-chromium
+
+# ------- Copy startup scripts -------
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 9222 5901 6081
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -sf http://127.0.0.1:${REMOTE_DEBUGGING_PORT}/json/version >/dev/null || exit 1
+
+USER browser
+WORKDIR /home/browser
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
