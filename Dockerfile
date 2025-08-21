@@ -39,7 +39,7 @@ RUN apt-get update \
         libnss3 libgbm1 libfreetype6 \
         libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
         libxext6 libxfixes3 \
-        libdrm2 libgl1-mesa-glx libasound2 \
+        libdrm2 libgl1-mesa-dri libasound2 \
         fonts-dejavu \
         gosu \
     && apt-get clean \
