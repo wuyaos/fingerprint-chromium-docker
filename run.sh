@@ -33,7 +33,7 @@ log_error() {
 : "${REMOTE_DEBUGGING_PORT:=9222}"
 : "${SCREEN_WIDTH:=1280}"
 : "${SCREEN_HEIGHT:=800}"
-: "${VNC_PASSWORD:=changeme}"
+: "${VNC_PASSWORD:=}"
 : "${PUID:=1000}"
 : "${PGID:=1000}"
 : "${UMASK_SET:=022}"
@@ -103,12 +103,8 @@ fi
 
 # Start VNC server if not already running
 if ! pgrep -f "x11vnc.*${DISPLAY}" >/dev/null; then
-    log_info "Starting x11vnc server on port ${VNC_PORT}..."
-    if [ -n "${VNC_PASSWORD}" ] && [ "${VNC_PASSWORD}" != "changeme" ]; then
-        x11vnc -display "${DISPLAY}" -forever -shared -rfbport "${VNC_PORT}" -passwd "${VNC_PASSWORD}" &
-    else
-        x11vnc -display "${DISPLAY}" -forever -shared -rfbport "${VNC_PORT}" -nopw &
-    fi
+    log_info "Starting x11vnc server on port ${VNC_PORT} (no password)..."
+    x11vnc -display "${DISPLAY}" -forever -shared -rfbport "${VNC_PORT}" -nopw &
     sleep 2
 fi
 

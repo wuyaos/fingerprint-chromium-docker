@@ -14,7 +14,6 @@ services:
       - "6081:6081"  # noVNC web interface
       - "5901:5901"  # VNC direct access
     environment:
-      - VNC_PASSWORD=changeme
       - FINGERPRINT_SEED=2025
       - FINGERPRINT_PLATFORM=linux
       - FINGERPRINT_BRAND=Chrome
@@ -28,8 +27,8 @@ services:
       # - PROXY_SERVER=http://proxy:8080
       # - CHROME_EXTRA_ARGS=--disable-web-security
     volumes:
-      - ./chrome-data:/home/browser/.chrome-data
-      - ./chrome-profiles:/home/browser/.chrome-profiles
+      - ./data/chrome-data:/data/chrome-data
+      - ./data/chrome-profiles:/data/chrome-profiles
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:9222/json/version"]

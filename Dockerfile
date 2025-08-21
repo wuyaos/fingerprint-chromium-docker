@@ -33,25 +33,25 @@ ENV \
     TZ=Asia/Shanghai \
     LD_LIBRARY_PATH=/opt/fingerprint-chromium:$LD_LIBRARY_PATH
 
-# Install runtime dependencies and download tools
+# Install minimal runtime dependencies and download tools
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        libnss3 libgbm1 libfreetype6 libharfbuzz0b \
+        libnss3 libgbm1 libfreetype6 \
         libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
-        libxext6 libxfixes3 libxkbcommon0 \
+        libxext6 libxfixes3 \
         libdrm2 libgl1-mesa-glx libasound2 \
-        fonts-dejavu fonts-liberation fonts-noto-cjk \
-        gosu curl ca-certificates xz-utils \
-        sudo cron \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Download and extract fingerprint-chromium
-RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
+        fonts-dejavu \
+        gosu curl xz-utils \
+    && curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
     && mkdir -p /opt/fingerprint-chromium \
     && tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1 \
-    && rm -f /tmp/fc.tar.xz \
-    && chmod +x /opt/fingerprint-chromium/chrome
+    && chmod +x /opt/fingerprint-chromium/chrome \
+    && apt-get purge -y curl xz-utils \
+    && apt-get autoremove -y \
+    && apt-get autoclean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
+
+
 
 # Create browser user and setup directories
 RUN useradd -m -s /bin/bash browser \
@@ -157,12 +157,21 @@ RUN echo '#!/bin/bash' > /opt/fingerprint-chromium/start.sh \
 COPY run.sh /opt/run.sh
 RUN chmod +x /opt/run.sh
 
+# Create data directories and set as volumes for persistence
+RUN mkdir -p /data/chrome-data /data/chrome-profiles \
+    && chown -R browser:browser /data \
+    && ln -sf /data/chrome-data /home/browser/.chrome-data \
+    && ln -sf /data/chrome-profiles /home/browser/.chrome-profiles
+
+# Declare volumes for data persistence
+VOLUME ["/data/chrome-data", "/data/chrome-profiles"]
+
 # Expose ports
 EXPOSE 6081 5901 9222
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 \
-    CMD curl -sf http://127.0.0.1:${REMOTE_DEBUGGING_PORT}/json/version >/dev/null || exit 1
+# Health check (simplified)
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+    CMD pgrep -f "chrome" >/dev/null || exit 1
 
 # Set working directory and user
 WORKDIR /opt

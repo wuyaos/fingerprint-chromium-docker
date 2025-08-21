@@ -1,6 +1,6 @@
-# Fingerprint Chromium Docker - 新版本
+# Fingerprint Chromium Docker
 
-基于webvnc的全新fingerprint-chromium Docker镜像，参考115浏览器的构建方式，提供更好的VNC支持和用户体验。
+基于webvnc的全新fingerprint-chromium Docker镜像，提供更好的VNC支持和用户体验。
 
 ## 🚀 新版本特性
 
@@ -46,32 +46,31 @@ export PUID=$(id -u)
 export PGID=$(id -g)
 
 # 启动服务
-docker-compose -f docker-compose.new.yml up -d
+docker-compose -f docker-compose.yml up -d
 
 # 查看日志
-docker-compose -f docker-compose.new.yml logs -f
+docker-compose -f docker-compose.yml logs -f
 ```
 
 ### 直接运行
 
 ```bash
 # 基础运行
-docker run -d --name fpc-new \
+docker run -d --name fpc \
   -p 9222:9222 -p 6081:6081 -p 5901:5901 \
   -e PUID=$(id -u) -e PGID=$(id -g) \
   -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 \
-  fingerprint-chromium-new:latest
+  fingerprint-chromium:latest
 
-# 带数据持久化
-docker run -d --name fpc-new \
+# 带数据持久化（推荐）
+docker run -d --name fpc \
   -p 9222:9222 -p 6081:6081 -p 5901:5901 \
   -e PUID=$(id -u) -e PGID=$(id -g) \
-  -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 \
-  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
-  -v $(pwd)/chrome-profiles:/home/browser/.chrome-profiles \
-  fingerprint-chromium-new:latest
+  -v $(pwd)/data/chrome-data:/data/chrome-data \
+  -v $(pwd)/data/chrome-profiles:/data/chrome-profiles \
+  wuyaos/fingerprint-chromium-docker:latest
 ```
 
 ## 🌐 访问方式
@@ -79,7 +78,7 @@ docker run -d --name fpc-new \
 启动后可通过以下方式访问：
 
 - **noVNC Web界面**: http://localhost:6081
-- **VNC客户端**: localhost:5901 (密码: changeme)
+- **VNC客户端**: localhost:5901 (无密码)
 - **Chrome DevTools**: http://localhost:9222
 - **健康检查**: http://localhost:9222/json/version
 
@@ -93,7 +92,7 @@ VNC_PORT=5901                # VNC端口
 REMOTE_DEBUGGING_PORT=9222   # Chrome调试端口
 SCREEN_WIDTH=1280            # 屏幕宽度
 SCREEN_HEIGHT=800            # 屏幕高度
-VNC_PASSWORD=changeme        # VNC密码
+# VNC无密码访问
 ```
 
 ### 权限管理

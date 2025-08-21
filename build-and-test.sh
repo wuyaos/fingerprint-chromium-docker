@@ -156,8 +156,8 @@ show_usage() {
     echo "  BROWSER_LANG: zh-CN"
     echo
     echo "Data directories:"
-    echo "  Chrome Data: ./chrome-data"
-    echo "  Chrome Profiles: ./chrome-profiles"
+    echo "  Chrome Data: ./data/chrome-data"
+    echo "  Chrome Profiles: ./data/chrome-profiles"
     echo
     echo "Commands:"
     echo "  Stop: docker-compose down"
