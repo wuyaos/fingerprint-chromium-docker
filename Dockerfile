@@ -46,25 +46,47 @@ ENV LANG=en_US.UTF-8 \
     CHROME_EXTRA_ARGS="" \
     REMOTE_DEBUGGING_PORT=9222
 
-# Install runtime dependencies (single layer, minimal packages)
+# Install basic tools first
 RUN export DEBIAN_FRONTEND=noninteractive \
-    && ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        sudo cron \
+        sudo cron locales curl ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install X11 and VNC dependencies
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         xvfb x11vnc openbox \
         novnc websockify \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install fonts
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         fonts-dejavu fonts-liberation fonts-noto-cjk \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chromium runtime libraries
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         libnss3 libfreetype6 libharfbuzz0b \
         libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
         libxext6 libxfixes3 libxkbcommon0 \
         libdrm2 libgbm1 libgl1-mesa-glx \
         libasound2 \
-    && locale-gen en_US.UTF-8 \
-    && apt-get autoremove -y \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/* \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set timezone and locale
+RUN ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && (locale-gen en_US.UTF-8 || echo "locale-gen not available") \
     && mkdir -p /opt /var/log/supervisor
 
 # Copy fingerprint-chromium from downloader stage
