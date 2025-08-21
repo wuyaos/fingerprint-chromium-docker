@@ -45,12 +45,21 @@ ENV LANG=zh_CN.UTF-8 \
     PGID=1000 \
     UMASK_SET=022
 
-# Install basic dependencies
+# Install basic dependencies step by step
 RUN apk add --no-cache \
-        bash sudo dcron wget curl ca-certificates su-exec \
-        xvfb x11vnc openbox \
-        novnc websockify \
-        ttf-dejavu ttf-liberation fontconfig
+        bash sudo wget curl ca-certificates su-exec
+
+# Install X11 and VNC
+RUN apk add --no-cache \
+        xvfb x11vnc openbox
+
+# Install fonts
+RUN apk add --no-cache \
+        ttf-dejavu fontconfig
+
+# Try to install novnc/websockify (may not be available in all Alpine versions)
+RUN apk add --no-cache novnc websockify || \
+    echo "Warning: novnc/websockify not available, VNC web interface will not work"
 
 # Install glibc for fingerprint-chromium compatibility
 RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
