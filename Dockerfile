@@ -53,7 +53,7 @@ ENV LANG=en_US.UTF-8 \
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        sudo cron locales curl ca-certificates \
+        sudo cron locales curl ca-certificates gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

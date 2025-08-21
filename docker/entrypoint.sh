@@ -31,30 +31,60 @@ echo "Setting up user with PUID=${PUID} and PGID=${PGID}"
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
 
+# Function to run commands with appropriate privileges
+run_as_root() {
+    if [ "${CURRENT_UID}" = "0" ]; then
+        # Already running as root
+        "$@"
+    else
+        # Use sudo
+        sudo "$@"
+    fi
+}
+
 if [ "${PUID}" != "${CURRENT_UID}" ] || [ "${PGID}" != "${CURRENT_GID}" ]; then
     echo "Adjusting user permissions..."
 
-    # Create group if it doesn't exist
-    if ! getent group "${PGID}" >/dev/null 2>&1; then
-        sudo groupadd -g "${PGID}" browsergroup
-    fi
-
-    # Create or modify user
-    if id browser >/dev/null 2>&1; then
-        sudo usermod -u "${PUID}" -g "${PGID}" browser
+    # Special handling for root user (PUID=0)
+    if [ "${PUID}" = "0" ]; then
+        echo "Running as root user (PUID=0)"
+        # No need to create/modify user, just ensure directories exist
+        mkdir -p /root/.chrome-data /root/.chrome-profiles/default
+        chmod 755 /root/.chrome-data /root/.chrome-profiles
+        # Update paths for root user
+        USER_DIR="/root/.chrome-data"
+        PROFILE_BASE_DIR="/root/.chrome-profiles"
+        PROFILE_DIR="/root/.chrome-profiles/default"
     else
-        sudo useradd -u "${PUID}" -g "${PGID}" -m -s /bin/bash browser
-    fi
+        # Create group if it doesn't exist
+        if ! getent group "${PGID}" >/dev/null 2>&1; then
+            run_as_root groupadd -g "${PGID}" browsergroup
+        fi
 
-    # Fix ownership of home directory
-    sudo chown -R "${PUID}:${PGID}" /home/browser
-    sudo chown -R "${PUID}:${PGID}" /opt/fingerprint-chromium
+        # Create or modify user
+        if id browser >/dev/null 2>&1; then
+            run_as_root usermod -u "${PUID}" -g "${PGID}" browser
+        else
+            run_as_root useradd -u "${PUID}" -g "${PGID}" -m -s /bin/bash browser
+        fi
+
+        # Fix ownership of home directory
+        run_as_root chown -R "${PUID}:${PGID}" /home/browser
+        run_as_root chown -R "${PUID}:${PGID}" /opt/fingerprint-chromium
+    fi
 fi
 
 XVFB_DISPLAY=${DISPLAY}
 CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
-USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
-PROFILE_BASE_DIR=${PROFILE_BASE_DIR:-/home/browser/.chrome-profiles}
+
+# Set default directories based on user
+if [ "${PUID}" = "0" ]; then
+    USER_DIR=${USER_DIR:-/root/.chrome-data}
+    PROFILE_BASE_DIR=${PROFILE_BASE_DIR:-/root/.chrome-profiles}
+else
+    USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
+    PROFILE_BASE_DIR=${PROFILE_BASE_DIR:-/home/browser/.chrome-profiles}
+fi
 PROFILE_DIR=${PROFILE_DIR:-${PROFILE_BASE_DIR}/default}
 
 # Create user directories with proper permissions step by step
@@ -154,4 +184,24 @@ if [[ -n "${CHROME_EXTRA_ARGS}" ]]; then
 fi
 
 # Start browser in foreground so container stays alive
-exec "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+if [ "${PUID}" = "0" ]; then
+    echo "Starting browser as root user"
+    exec "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+else
+    echo "Starting browser as user browser (UID=${PUID})"
+    if [ "${CURRENT_UID}" = "0" ]; then
+        # Running as root, switch to browser user
+        # Use gosu for Ubuntu/Debian, su-exec for Alpine
+        if command -v gosu >/dev/null 2>&1; then
+            exec gosu "${PUID}:${PGID}" "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+        elif command -v su-exec >/dev/null 2>&1; then
+            exec su-exec "${PUID}:${PGID}" "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+        else
+            echo "Warning: Neither gosu nor su-exec found, running as root"
+            exec "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+        fi
+    else
+        # Already running as correct user
+        exec "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
+    fi
+fi

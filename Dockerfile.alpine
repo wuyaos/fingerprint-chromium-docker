@@ -47,7 +47,7 @@ ENV LANG=zh_CN.UTF-8 \
 
 # Install basic dependencies
 RUN apk add --no-cache \
-        bash sudo dcron wget curl ca-certificates \
+        bash sudo dcron wget curl ca-certificates su-exec \
         xvfb x11vnc openbox \
         novnc websockify \
         ttf-dejavu ttf-liberation fontconfig
