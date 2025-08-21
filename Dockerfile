@@ -33,7 +33,7 @@ ENV \
     TZ=Asia/Shanghai \
     LD_LIBRARY_PATH=/opt/fingerprint-chromium:$LD_LIBRARY_PATH
 
-# Install minimal runtime dependencies and download tools
+# Install minimal runtime dependencies first
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libnss3 libgbm1 libfreetype6 \
@@ -41,7 +41,13 @@ RUN apt-get update \
         libxext6 libxfixes3 \
         libdrm2 libgl1-mesa-glx libasound2 \
         fonts-dejavu \
-        gosu curl xz-utils \
+        gosu \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and extract fingerprint-chromium in separate step
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl xz-utils \
     && curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
     && mkdir -p /opt/fingerprint-chromium \
     && tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1 \
