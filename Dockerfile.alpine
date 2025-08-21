@@ -73,9 +73,15 @@ RUN ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome
 # Create non-root user and setup directories
 RUN adduser -D -s /bin/bash browser \
     && echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers \
-    && mkdir -p /home/browser/Downloads /home/browser/.chrome-data /home/browser/.chrome-profiles /tmp/.X11-unix \
+    && mkdir -p /home/browser/Downloads \
+    && mkdir -p /home/browser/.chrome-data \
+    && mkdir -p /home/browser/.chrome-profiles \
+    && mkdir -p /home/browser/.chrome-profiles/default \
+    && mkdir -p /tmp/.X11-unix \
     && chmod 1777 /tmp/.X11-unix \
-    && chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles \
+    && chmod 755 /home/browser/.chrome-data \
+    && chmod 755 /home/browser/.chrome-profiles \
+    && chmod 755 /home/browser/.chrome-profiles/default \
     && chown -R browser:browser /home/browser /opt/fingerprint-chromium
 
 # Copy startup and cleanup scripts

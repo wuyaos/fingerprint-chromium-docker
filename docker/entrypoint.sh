@@ -21,20 +21,28 @@ set -euo pipefail
 XVFB_DISPLAY=${DISPLAY}
 CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
 USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
-PROFILE_DIR=${PROFILE_DIR:-/home/browser/.chrome-profiles/default}
+PROFILE_BASE_DIR=${PROFILE_BASE_DIR:-/home/browser/.chrome-profiles}
+PROFILE_DIR=${PROFILE_DIR:-${PROFILE_BASE_DIR}/default}
 
-# Create user directories with proper permissions
-mkdir -p "${USER_DIR}" 2>/dev/null || true
-mkdir -p "$(dirname "${PROFILE_DIR}")" 2>/dev/null || true
-mkdir -p "${PROFILE_DIR}" 2>/dev/null || true
-chmod 755 "${USER_DIR}" "$(dirname "${PROFILE_DIR}")" "${PROFILE_DIR}" 2>/dev/null || true
+# Create user directories with proper permissions step by step
+echo "Creating directories..."
+mkdir -p "${USER_DIR}" 2>/dev/null || echo "Failed to create ${USER_DIR}"
+mkdir -p "${PROFILE_BASE_DIR}" 2>/dev/null || echo "Failed to create ${PROFILE_BASE_DIR}"
+mkdir -p "${PROFILE_DIR}" 2>/dev/null || echo "Failed to create ${PROFILE_DIR}"
 
-# Test if directory is writable
+# Set permissions
+chmod 755 "${USER_DIR}" 2>/dev/null || true
+chmod 755 "${PROFILE_BASE_DIR}" 2>/dev/null || true
+chmod 755 "${PROFILE_DIR}" 2>/dev/null || true
+
+# Test if directories are writable
 if ! touch "${USER_DIR}/.test" 2>/dev/null; then
-    echo "Warning: ${USER_DIR} is not writable, using home directory"
-    USER_DIR="/home/browser/.chrome-data-fallback"
-    PROFILE_DIR="/home/browser/.chrome-profiles-fallback/default"
+    echo "Warning: ${USER_DIR} is not writable, using fallback directory"
+    USER_DIR="/tmp/chrome-data-$$"
+    PROFILE_BASE_DIR="/tmp/chrome-profiles-$$"
+    PROFILE_DIR="${PROFILE_BASE_DIR}/default"
     mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
+    echo "Using fallback directories: ${USER_DIR}, ${PROFILE_DIR}"
 fi
 rm -f "${USER_DIR}/.test" 2>/dev/null || true
 
