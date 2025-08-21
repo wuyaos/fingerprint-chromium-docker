@@ -44,7 +44,10 @@ ENV LANG=en_US.UTF-8 \
     BROWSER_LANG="zh-CN" \
     PROXY_SERVER="" \
     CHROME_EXTRA_ARGS="" \
-    REMOTE_DEBUGGING_PORT=9222
+    REMOTE_DEBUGGING_PORT=9222 \
+    PUID=1000 \
+    PGID=1000 \
+    UMASK_SET=022
 
 # Install basic tools first
 RUN export DEBIAN_FRONTEND=noninteractive \

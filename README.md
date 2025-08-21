@@ -31,9 +31,17 @@ docker build -f Dockerfile.alpine -t wuyaos/fingerprint-chromium-docker:alpine .
 运行容器：
 
 ```bash
+# 基础运行
 docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
   -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
+  --name fpc wuyaos/fingerprint-chromium-docker:latest
+
+# 使用PUID/PGID解决权限问题（推荐）
+docker run --rm -p 9222:9222 -p 6081:6081 \
+  -e PUID=$(id -u) -e PGID=$(id -g) -e UMASK_SET=022 \
+  -e VNC_PASSWORD=changeme -e FINGERPRINT_SEED=2025 \
+  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
   --name fpc wuyaos/fingerprint-chromium-docker:latest
 ```
 
@@ -103,6 +111,61 @@ docker run -d --name fpc \
    - Proxy SwitchyOmega（代理切换）
    - User-Agent Switcher（用户代理切换）
    - Cookie Editor（Cookie管理）
+
+## 权限问题解决方案
+
+### 使用PUID/PGID（推荐方法）
+
+容器支持PUID/PGID环境变量来解决文件权限问题：
+
+```bash
+# 获取当前用户的UID和GID
+echo "当前用户 UID: $(id -u)"
+echo "当前用户 GID: $(id -g)"
+
+# 使用PUID/PGID运行容器
+docker run -d --name fpc \
+  -p 9222:9222 -p 6081:6081 \
+  -e PUID=$(id -u) \
+  -e PGID=$(id -g) \
+  -e UMASK_SET=022 \
+  -e VNC_PASSWORD=changeme \
+  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
+  -v $(pwd)/chrome-profiles:/home/browser/.chrome-profiles \
+  wuyaos/fingerprint-chromium-docker:latest
+```
+
+### 环境变量说明
+
+- **PUID**: 容器内browser用户的UID（默认1000）
+- **PGID**: 容器内browser用户的GID（默认1000）
+- **UMASK_SET**: 文件创建权限掩码（默认022）
+
+### 权限问题排查
+
+如果仍有权限问题，可以：
+
+1. **检查目录权限**：
+   ```bash
+   ls -la chrome-data/
+   ls -la chrome-profiles/
+   ```
+
+2. **手动修复权限**：
+   ```bash
+   sudo chown -R $(id -u):$(id -g) chrome-data/
+   sudo chown -R $(id -u):$(id -g) chrome-profiles/
+   ```
+
+3. **使用docker-compose**：
+   ```bash
+   # 设置环境变量
+   export PUID=$(id -u)
+   export PGID=$(id -g)
+
+   # 启动服务
+   docker-compose up -d
+   ```
 
 ## 配置说明
 

@@ -17,6 +17,39 @@ set -euo pipefail
 : "${TIMEZONE:=Asia/Shanghai}"
 : "${PROXY_SERVER:=}"
 : "${CHROME_EXTRA_ARGS:=}"
+: "${PUID:=1000}"
+: "${PGID:=1000}"
+: "${UMASK_SET:=022}"
+
+# Set umask
+umask "${UMASK_SET}"
+
+# Handle PUID/PGID
+echo "Setting up user with PUID=${PUID} and PGID=${PGID}"
+
+# Get current user info
+CURRENT_UID=$(id -u)
+CURRENT_GID=$(id -g)
+
+if [ "${PUID}" != "${CURRENT_UID}" ] || [ "${PGID}" != "${CURRENT_GID}" ]; then
+    echo "Adjusting user permissions..."
+
+    # Create group if it doesn't exist
+    if ! getent group "${PGID}" >/dev/null 2>&1; then
+        sudo groupadd -g "${PGID}" browsergroup
+    fi
+
+    # Create or modify user
+    if id browser >/dev/null 2>&1; then
+        sudo usermod -u "${PUID}" -g "${PGID}" browser
+    else
+        sudo useradd -u "${PUID}" -g "${PGID}" -m -s /bin/bash browser
+    fi
+
+    # Fix ownership of home directory
+    sudo chown -R "${PUID}:${PGID}" /home/browser
+    sudo chown -R "${PUID}:${PGID}" /opt/fingerprint-chromium
+fi
 
 XVFB_DISPLAY=${DISPLAY}
 CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
