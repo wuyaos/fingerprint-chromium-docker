@@ -23,9 +23,17 @@ CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
 USER_DIR=${USER_DIR:-/data}
 PROFILE_DIR=${PROFILE_DIR:-/profiles/default}
 
-# Create directories with proper permissions
+# Use temp directory if /data is not writable
+if ! touch "${USER_DIR}/.test" 2>/dev/null; then
+    echo "Warning: ${USER_DIR} is not writable, using temporary directory"
+    USER_DIR="/tmp/chrome-data"
+    mkdir -p "${USER_DIR}"
+fi
+rm -f "${USER_DIR}/.test" 2>/dev/null || true
+
+# Create directories with proper permissions (ignore chmod errors for mounted volumes)
 mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
-chmod 755 "${USER_DIR}" "${PROFILE_DIR}"
+chmod 755 "${USER_DIR}" "${PROFILE_DIR}" 2>/dev/null || true
 
 # Create X11 socket directory if it doesn't exist
 sudo mkdir -p /tmp/.X11-unix || true
@@ -80,6 +88,13 @@ CHROME_FLAGS=(
   "--disable-renderer-backgrounding"
   "--disable-features=TranslateUI"
   "--disable-ipc-flooding-protection"
+  "--no-first-run"
+  "--no-default-browser-check"
+  "--disable-default-apps"
+  "--disable-extensions"
+  "--disable-plugins"
+  "--disable-sync"
+  "--disable-background-networking"
   "--window-size=${SCREEN_WIDTH},${SCREEN_HEIGHT}"
   "--force-device-scale-factor=1"
 )
