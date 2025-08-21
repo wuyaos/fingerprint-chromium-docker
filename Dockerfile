@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.6
-# Alpine-based image with glibc, Xvfb, VNC, noVNC and fingerprint-chromium
+# Ubuntu-based optimized image with fingerprint-chromium, Xvfb, VNC, noVNC
 
-ARG ALPINE_VERSION=3.19
-FROM alpine:${ALPINE_VERSION}
+ARG UBUNTU_VERSION=22.04
+FROM ubuntu:${UBUNTU_VERSION}
 
 # ------- Build args & envs -------
 ARG FC_VERSION=136.0.7103.113
@@ -30,51 +30,31 @@ ENV LANG=en_US.UTF-8 \
     CHROME_EXTRA_ARGS="" \
     REMOTE_DEBUGGING_PORT=9222
 
-# ------- Install basic tools and dependencies -------
+# ------- Install dependencies (optimized for size) -------
 RUN set -eux; \
-    apk add --no-cache --virtual .build-deps curl wget tar ca-certificates binutils xz; \
-    apk add --no-cache tzdata bash su-exec shadow; \
-    update-ca-certificates; \
-    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
-
-# ------- Try alternative glibc installation method -------
-RUN set -eux; \
-    # Try using gcompat first (simpler approach)
-    apk add --no-cache gcompat || { \
-        # Fallback to sgerrand glibc if gcompat fails
-        GLIBC_VER=2.34-r0; \
-        wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub || true; \
-        wget -q -O /tmp/glibc.apk "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk" || true; \
-        wget -q -O /tmp/glibc-bin.apk "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk" || true; \
-        if [ -f /tmp/glibc.apk ]; then \
-            apk add --no-cache --allow-untrusted /tmp/glibc.apk /tmp/glibc-bin.apk; \
-        fi; \
-        rm -f /tmp/glibc*.apk; \
-    }
-
-# ------- Install X11 and VNC dependencies -------
-RUN set -eux; \
-    apk add --no-cache \
+    # Set timezone non-interactively
+    export DEBIAN_FRONTEND=noninteractive; \
+    export TZ=Asia/Shanghai; \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      curl ca-certificates xz-utils \
+      tzdata locales sudo cron \
       xvfb x11vnc openbox \
       novnc websockify \
-      unzip
-
-# ------- Install fonts -------
-RUN set -eux; \
-    apk add --no-cache \
-      ttf-dejavu ttf-liberation \
-      font-noto font-noto-cjk \
-      ttf-freefont
-
-# ------- Install Chromium runtime dependencies (minimal set to avoid gcompat) -------
-RUN set -eux; \
-    apk add --no-cache \
-      nss freetype harfbuzz \
-      libx11 libxcomposite libxdamage libxi libxrandr libxrender libxtst \
-      libxext libxfixes libxkbcommon \
-      libdrm libgbm mesa-gl \
-      alsa-lib; \
-    rm -rf /var/cache/apk/*
+      fonts-dejavu fonts-liberation fonts-noto-cjk \
+      libnss3 libfreetype6 libharfbuzz0b \
+      libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
+      libxext6 libxfixes3 libxkbcommon0 \
+      libdrm2 libgbm1 libgl1-mesa-glx \
+      libasound2; \
+    # Set up locale
+    locale-gen en_US.UTF-8; \
+    # Clean up to reduce image size
+    apt-get autoremove -y; \
+    apt-get autoclean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
+    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
 
 # ------- Download fingerprint-chromium -------
 RUN set -eux; \
@@ -88,15 +68,18 @@ RUN set -eux; \
     # Ensure executable permissions
     chmod +x /opt/fingerprint-chromium/chrome || true
 
-# ------- Create non-root user -------
+# ------- Create non-root user with sudo access -------
 RUN set -eux; \
     useradd -m -s /bin/bash browser; \
-    mkdir -p /home/browser/Downloads /data /profiles; \
+    echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers; \
+    mkdir -p /home/browser/Downloads /data /profiles /tmp/.X11-unix; \
+    chmod 1777 /tmp/.X11-unix; \
     chown -R browser:browser /home/browser /data /profiles /opt/fingerprint-chromium
 
-# ------- Copy startup scripts -------
+# ------- Copy startup and cleanup scripts -------
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY docker/cleanup-cache.sh /usr/local/bin/cleanup-cache.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/cleanup-cache.sh
 
 EXPOSE 9222 5901 6081
 

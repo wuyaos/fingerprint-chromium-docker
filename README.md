@@ -1,10 +1,11 @@
 # 基于Docker的fingerprint-chromium浏览器容器
 
-本项目提供基于Alpine的Docker镜像，集成以下功能：
+本项目提供基于Ubuntu的优化Docker镜像，集成以下功能：
 - fingerprint-chromium (adryfish/fingerprint-chromium) 具备隐身指纹特性
 - Xvfb + x11vnc + noVNC 实现实时Web界面查看
 - Chrome DevTools Protocol 远程调试端口9222，支持DrissionPage连接
 - 中国本地化：默认Asia/Shanghai时区、zh-CN语言、CJK字体支持
+- 自动缓存清理：每4小时自动清理浏览器缓存和临时文件
 
 ## 功能特性
 
@@ -19,11 +20,7 @@
 本地构建：
 
 ```bash
-# Alpine版本（默认，更小的镜像）
 docker build -t wuyaos/fingerprint-chromium-docker:latest .
-
-# Ubuntu版本（更好的兼容性）
-docker build -f Dockerfile.ubuntu -t wuyaos/fingerprint-chromium-docker:ubuntu .
 ```
 
 运行容器：
@@ -35,13 +32,13 @@ docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
   --name fpc wuyaos/fingerprint-chromium-docker:latest
 ```
 
-或直接使用Docker Hub镜像：
+或使用特定版本：
 
 ```bash
 docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
   -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
-  --name fpc wuyaos/fingerprint-chromium-docker:latest
+  --name fpc wuyaos/fingerprint-chromium-docker:136.0.7103.113
 ```
 
 在浏览器中打开noVNC界面：
@@ -117,11 +114,11 @@ docker run -d --name fpc \
 
 本仓库包含 .github/workflows/docker-build.yml，功能如下：
 
-- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本和基础镜像
-- 支持Alpine和Ubuntu两种基础镜像
+- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本
+- 基于Ubuntu 22.04优化构建
 - 推送到Docker Hub：`wuyaos/fingerprint-chromium-docker`
 - 目标平台：linux/amd64（已移除QEMU以提高构建速度）
-- 提供标签：latest（Alpine）、latest-ubuntu（Ubuntu）、git标签、sha
+- 提供标签：latest、版本号（如136.0.7103.113）、git标签、sha
 
 所需的GitHub仓库密钥：
 
@@ -135,5 +132,6 @@ docker run -d --name fpc \
 ## 注意事项
 
 - fingerprint-chromium Linux制品在构建时下载；如需更新版本请修改Dockerfile中的FC_VERSION
-- Alpine使用musl，我们通过sgerrand包安装glibc以满足Chromium运行时要求
-- Ubuntu版本提供更好的兼容性，但镜像体积较大
+- 基于Ubuntu 22.04，提供最佳兼容性和稳定性
+- 自动缓存清理每4小时运行一次，保持容器性能
+- 镜像已优化，移除不必要的包以减小体积

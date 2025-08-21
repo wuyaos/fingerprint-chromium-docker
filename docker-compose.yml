@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
       args:
         FC_VERSION: "136.0.7103.113"
-    container_name: fingerprint-chromium-drission
+    container_name: fingerprint-chromium-optimized
     ports:
       - "9222:9222"  # Chrome DevTools Protocol
       - "6081:6081"  # noVNC web interface

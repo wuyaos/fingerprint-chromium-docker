@@ -55,6 +55,10 @@ x11vnc -display ${XVFB_DISPLAY} -forever -shared -rfbport 5901 -passwd "${VNC_PA
 # Start noVNC (websockify) serving on 6081 -> connects to VNC 5901
 websockify --web=/usr/share/novnc/ 0.0.0.0:6081 127.0.0.1:5901 --daemon
 
+# Setup cache cleanup cron job (runs every 4 hours)
+echo "0 */4 * * * /usr/local/bin/cleanup-cache.sh" | crontab -
+sudo service cron start
+
 # Build fingerprint-chromium args
 FC_ARGS=(
   "--remote-debugging-port=${REMOTE_DEBUGGING_PORT}"
