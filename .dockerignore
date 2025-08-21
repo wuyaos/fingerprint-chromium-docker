@@ -32,12 +32,16 @@ Thumbs.db
 *.log
 logs/
 
-# Runtime data
+# Runtime data (will be mounted as volumes)
 data/
 profiles/
+chrome-data/
+chrome-profiles/
 *.pid
 *.seed
 *.pid.lock
+*.tmp
+*.temp
 
 # Coverage directory used by tools like istanbul
 coverage/

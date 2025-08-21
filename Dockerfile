@@ -1,15 +1,31 @@
 # syntax=docker/dockerfile:1.6
-# Ubuntu-based optimized image with fingerprint-chromium, Xvfb, VNC, noVNC
+# Multi-stage build for optimized fingerprint-chromium image
 
+# -------- Stage 1: Download and extract fingerprint-chromium --------
 ARG UBUNTU_VERSION=22.04
-FROM ubuntu:${UBUNTU_VERSION}
+FROM ubuntu:${UBUNTU_VERSION} AS downloader
 
-# ------- Build args & envs -------
 ARG FC_VERSION=136.0.7103.113
 # Check the release page for a newer matching Linux tarball name if needed
 ARG FC_TARBALL="ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz"
 ARG FC_URL="https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/${FC_TARBALL}"
 
+# Install minimal tools for downloading
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates xz-utils \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Download and extract fingerprint-chromium
+RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
+    && mkdir -p /opt/fingerprint-chromium \
+    && tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1 \
+    && rm -f /tmp/fc.tar.xz \
+    && chmod +x /opt/fingerprint-chromium/chrome
+
+# -------- Stage 2: Runtime image --------
+FROM ubuntu:${UBUNTU_VERSION}
+
+# Runtime environment variables
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8 \
@@ -30,52 +46,38 @@ ENV LANG=en_US.UTF-8 \
     CHROME_EXTRA_ARGS="" \
     REMOTE_DEBUGGING_PORT=9222
 
-# ------- Install dependencies (optimized for size) -------
-RUN set -eux; \
-    # Set timezone non-interactively
-    export DEBIAN_FRONTEND=noninteractive; \
-    export TZ=Asia/Shanghai; \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-      curl ca-certificates xz-utils \
-      tzdata locales sudo cron \
-      xvfb x11vnc openbox \
-      novnc websockify \
-      fonts-dejavu fonts-liberation fonts-noto-cjk \
-      libnss3 libfreetype6 libharfbuzz0b \
-      libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
-      libxext6 libxfixes3 libxkbcommon0 \
-      libdrm2 libgbm1 libgl1-mesa-glx \
-      libasound2; \
-    # Set up locale
-    locale-gen en_US.UTF-8; \
-    # Clean up to reduce image size
-    apt-get autoremove -y; \
-    apt-get autoclean; \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
-    mkdir -p /opt /opt/browser /work /var/log/supervisor /root/.config
+# Install runtime dependencies (single layer, minimal packages)
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        sudo cron \
+        xvfb x11vnc openbox \
+        novnc websockify \
+        fonts-dejavu fonts-liberation fonts-noto-cjk \
+        libnss3 libfreetype6 libharfbuzz0b \
+        libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
+        libxext6 libxfixes3 libxkbcommon0 \
+        libdrm2 libgbm1 libgl1-mesa-glx \
+        libasound2 \
+    && locale-gen en_US.UTF-8 \
+    && apt-get autoremove -y \
+    && apt-get autoclean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/* \
+    && mkdir -p /opt /var/log/supervisor
 
-# ------- Download fingerprint-chromium -------
-RUN set -eux; \
-    echo "Downloading fingerprint-chromium ${FC_VERSION} from ${FC_URL}"; \
-    curl -fL "${FC_URL}" -o /tmp/fc.tar.xz; \
-    mkdir -p /opt/fingerprint-chromium; \
-    tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1; \
-    rm -f /tmp/fc.tar.xz; \
-    # Link main binary as chrome for convenience
-    if [ -f /opt/fingerprint-chromium/chrome ]; then ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome; fi; \
-    # Ensure executable permissions
-    chmod +x /opt/fingerprint-chromium/chrome || true
+# Copy fingerprint-chromium from downloader stage
+COPY --from=downloader /opt/fingerprint-chromium /opt/fingerprint-chromium
+RUN ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome
 
-# ------- Create non-root user with sudo access -------
-RUN set -eux; \
-    useradd -m -s /bin/bash browser; \
-    echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers; \
-    mkdir -p /home/browser/Downloads /home/browser/.chrome-data /home/browser/.chrome-profiles /tmp/.X11-unix; \
-    chmod 1777 /tmp/.X11-unix; \
-    chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles; \
-    chown -R browser:browser /home/browser /opt/fingerprint-chromium
+# Create non-root user and setup directories (single layer)
+RUN useradd -m -s /bin/bash browser \
+    && echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers \
+    && mkdir -p /home/browser/Downloads /home/browser/.chrome-data /home/browser/.chrome-profiles /tmp/.X11-unix \
+    && chmod 1777 /tmp/.X11-unix \
+    && chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles \
+    && chown -R browser:browser /home/browser /opt/fingerprint-chromium
 
 # ------- Copy startup and cleanup scripts -------
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
