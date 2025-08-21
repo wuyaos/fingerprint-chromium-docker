@@ -13,12 +13,11 @@ ENV \
     XDG_CACHE_HOME=/tmp \
     HOME=/opt \
     DISPLAY=:0 \
-    WEB_PORT=6081 \
-    VNC_PORT=5901 \
-    REMOTE_DEBUGGING_PORT=9222 \
+    NOVNC_PORT=6080 \
+    VNC_PORT=5900 \
+    CHROME_DEBUG_PORT=9222 \
     SCREEN_WIDTH=1280 \
     SCREEN_HEIGHT=800 \
-    VNC_PASSWORD=changeme \
     FINGERPRINT_SEED=1000 \
     FINGERPRINT_PLATFORM=linux \
     FINGERPRINT_BRAND=Chrome \
@@ -33,15 +32,22 @@ ENV \
     TZ=Asia/Shanghai \
     LD_LIBRARY_PATH=/opt/fingerprint-chromium:$LD_LIBRARY_PATH
 
-# Install minimal runtime dependencies first
+# Install X11, VNC and runtime dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        xvfb x11vnc openbox \
+        python3 python3-websockify python3-numpy \
         libnss3 libgbm1 libfreetype6 \
         libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
         libxext6 libxfixes3 \
         libdrm2 libgl1-mesa-dri libasound2 \
         fonts-dejavu \
-        gosu \
+        gosu wget \
+    && wget -qO- https://github.com/novnc/noVNC/archive/v1.3.0.tar.gz | tar xz -C /opt \
+    && mv /opt/noVNC-1.3.0 /opt/novnc \
+    && ln -sf /opt/novnc/vnc.html /opt/novnc/index.html \
+    && apt-get purge -y wget \
+    && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -173,7 +179,7 @@ RUN mkdir -p /data/chrome-data /data/chrome-profiles \
 VOLUME ["/data/chrome-data", "/data/chrome-profiles"]
 
 # Expose ports
-EXPOSE 6081 5901 9222
+EXPOSE 6080 5900 9222
 
 # Health check (simplified)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \

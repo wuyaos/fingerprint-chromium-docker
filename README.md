@@ -57,15 +57,14 @@ docker-compose -f docker-compose.yml logs -f
 ```bash
 # 基础运行
 docker run -d --name fpc \
-  -p 9222:9222 -p 6081:6081 -p 5901:5901 \
+  -p 9222:9222 -p 6080:6080 -p 5900:5900 \
   -e PUID=$(id -u) -e PGID=$(id -g) \
-  -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 \
   fingerprint-chromium:latest
 
 # 带数据持久化（推荐）
 docker run -d --name fpc \
-  -p 9222:9222 -p 6081:6081 -p 5901:5901 \
+  -p 9222:9222 -p 6080:6080 -p 5900:5900 \
   -e PUID=$(id -u) -e PGID=$(id -g) \
   -e FINGERPRINT_SEED=2025 \
   -v $(pwd)/data/chrome-data:/data/chrome-data \
@@ -77,8 +76,8 @@ docker run -d --name fpc \
 
 启动后可通过以下方式访问：
 
-- **noVNC Web界面**: http://localhost:6081
-- **VNC客户端**: localhost:5901 (无密码)
+- **noVNC Web界面**: http://localhost:6080
+- **VNC客户端**: localhost:5900 (无密码)
 - **Chrome DevTools**: http://localhost:9222
 - **健康检查**: http://localhost:9222/json/version
 
@@ -87,12 +86,11 @@ docker run -d --name fpc \
 ### 基础配置
 ```bash
 DISPLAY=:0                    # X11显示
-WEB_PORT=6081                # noVNC web端口
-VNC_PORT=5901                # VNC端口
-REMOTE_DEBUGGING_PORT=9222   # Chrome调试端口
+NOVNC_PORT=6080              # noVNC web端口
+VNC_PORT=5900                # VNC端口
+CHROME_DEBUG_PORT=9222       # Chrome调试端口
 SCREEN_WIDTH=1280            # 屏幕宽度
 SCREEN_HEIGHT=800            # 屏幕高度
-# VNC无密码访问
 ```
 
 ### 权限管理
@@ -146,17 +144,6 @@ docker run -d --name fpc-custom \
   fingerprint-chromium-new:latest
 ```
 
-## 📊 镜像对比
-
-| 特性 | 旧版本 | 新版本 |
-|------|--------|--------|
-| 基础镜像 | Ubuntu 22.04 | webvnc:latest |
-| VNC支持 | 手动配置 | 内置完整支持 |
-| noVNC | 需要安装 | 开箱即用 |
-| 权限管理 | 基础支持 | 完整PUID/PGID |
-| 启动脚本 | 简单 | 智能化 |
-| 健康检查 | 基础 | 完整 |
-
 ## 🛠️ 开发和调试
 
 ### 进入容器
@@ -207,15 +194,6 @@ docker exec fpc-new cat /tmp/fingerprint-chromium.log
 - 智能启动流程
 - 增强的错误处理
 - 完整的健康检查
-
-### v1.x (旧版本)
-- 基于Ubuntu构建
-- 基础VNC支持
-- 简单权限管理
-
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request来改进这个项目！
 
 ## 📄 许可证
 

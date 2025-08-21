@@ -28,12 +28,11 @@ log_error() {
 
 # Set defaults
 : "${DISPLAY:=:0}"
-: "${WEB_PORT:=6081}"
-: "${VNC_PORT:=5901}"
-: "${REMOTE_DEBUGGING_PORT:=9222}"
+: "${NOVNC_PORT:=6080}"
+: "${VNC_PORT:=5900}"
+: "${CHROME_DEBUG_PORT:=9222}"
 : "${SCREEN_WIDTH:=1280}"
 : "${SCREEN_HEIGHT:=800}"
-: "${VNC_PASSWORD:=}"
 : "${PUID:=1000}"
 : "${PGID:=1000}"
 : "${UMASK_SET:=022}"
@@ -43,9 +42,9 @@ umask "${UMASK_SET}"
 
 log_info "Starting fingerprint-chromium container..."
 log_info "Display: ${DISPLAY}"
-log_info "Web Port: ${WEB_PORT}"
+log_info "noVNC Port: ${NOVNC_PORT}"
 log_info "VNC Port: ${VNC_PORT}"
-log_info "Debug Port: ${REMOTE_DEBUGGING_PORT}"
+log_info "Chrome Debug Port: ${CHROME_DEBUG_PORT}"
 log_info "Screen: ${SCREEN_WIDTH}x${SCREEN_HEIGHT}"
 log_info "PUID: ${PUID}, PGID: ${PGID}"
 
@@ -87,11 +86,17 @@ fi
 export DISPLAY="${DISPLAY}"
 export GEOMETRY="${SCREEN_WIDTH}x${SCREEN_HEIGHT}"
 
+# Check if X11 tools are available
+if ! command -v Xvfb >/dev/null 2>&1; then
+    log_error "Xvfb not found! Installing X11 tools..."
+    apt-get update && apt-get install -y xvfb x11vnc openbox novnc websockify
+fi
+
 # Start VNC server if not already running
 if ! pgrep -f "Xvfb.*${DISPLAY}" >/dev/null; then
     log_info "Starting Xvfb on ${DISPLAY}..."
     Xvfb "${DISPLAY}" -screen 0 "${SCREEN_WIDTH}x${SCREEN_HEIGHT}x24" -ac +extension GLX +render -noreset &
-    sleep 2
+    sleep 3
 fi
 
 # Start window manager if not already running
@@ -104,19 +109,25 @@ fi
 # Start VNC server if not already running
 if ! pgrep -f "x11vnc.*${DISPLAY}" >/dev/null; then
     log_info "Starting x11vnc server on port ${VNC_PORT} (no password)..."
-    x11vnc -display "${DISPLAY}" -forever -shared -rfbport "${VNC_PORT}" -nopw &
-    sleep 2
+    if command -v x11vnc >/dev/null 2>&1; then
+        x11vnc -display "${DISPLAY}" -forever -shared -rfbport "${VNC_PORT}" -nopw &
+        sleep 2
+    else
+        log_error "x11vnc not found!"
+    fi
 fi
 
-# Start noVNC web interface if available
-if command -v websockify >/dev/null 2>&1; then
-    if ! pgrep -f "websockify.*${WEB_PORT}" >/dev/null; then
-        log_info "Starting noVNC web interface on port ${WEB_PORT}..."
-        websockify --web=/usr/share/novnc/ "${WEB_PORT}" "localhost:${VNC_PORT}" &
-        sleep 2
+# Start noVNC web interface
+if ! pgrep -f "websockify.*${NOVNC_PORT}" >/dev/null; then
+    log_info "Starting noVNC web interface on port ${NOVNC_PORT}..."
+    if command -v websockify >/dev/null 2>&1; then
+        websockify --web=/opt/novnc/ "${NOVNC_PORT}" "localhost:${VNC_PORT}" &
+    elif command -v python3 >/dev/null 2>&1 && python3 -c "import websockify" 2>/dev/null; then
+        python3 -m websockify --web=/opt/novnc/ "${NOVNC_PORT}" "localhost:${VNC_PORT}" &
+    else
+        log_warning "websockify not available, noVNC web interface will not be started"
     fi
-else
-    log_warning "websockify not available, noVNC web interface will not be started"
+    sleep 2
 fi
 
 # Wait for X server to be ready
@@ -145,9 +156,9 @@ fi
 # Keep container running
 log_success "All services started successfully!"
 log_info "Access methods:"
-log_info "  - noVNC web interface: http://localhost:${WEB_PORT}"
+log_info "  - noVNC web interface: http://localhost:${NOVNC_PORT}"
 log_info "  - VNC client: localhost:${VNC_PORT}"
-log_info "  - Chrome DevTools: http://localhost:${REMOTE_DEBUGGING_PORT}"
+log_info "  - Chrome DevTools: http://localhost:${CHROME_DEBUG_PORT}"
 
 # Wait for processes
 wait

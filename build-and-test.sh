@@ -128,7 +128,7 @@ test_container() {
     
     # Test noVNC web interface
     log_info "Testing noVNC web interface..."
-    if curl -sf http://localhost:6081 >/dev/null 2>&1; then
+    if curl -sf http://localhost:6080 >/dev/null 2>&1; then
         log_success "noVNC web interface is accessible"
     else
         log_warning "noVNC web interface is not accessible (may not be available)"
@@ -145,8 +145,8 @@ show_usage() {
     echo "Container is running and ready to use!"
     echo
     echo "Access methods:"
-    echo "  🌐 noVNC Web Interface: http://localhost:6081"
-    echo "  🖥️  VNC Client: localhost:5901 (password: changeme)"
+    echo "  🌐 noVNC Web Interface: http://localhost:6080"
+    echo "  🖥️  VNC Client: localhost:5900 (no password)"
     echo "  🔧 Chrome DevTools: http://localhost:9222"
     echo
     echo "Environment variables used:"
