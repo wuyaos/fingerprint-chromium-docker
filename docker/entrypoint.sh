@@ -20,14 +20,19 @@ set -euo pipefail
 
 XVFB_DISPLAY=${DISPLAY}
 CHROME_BIN=${CHROME_BIN:-/opt/fingerprint-chromium/chrome}
-USER_DIR=${USER_DIR:-/data}
-PROFILE_DIR=${PROFILE_DIR:-/profiles/default}
+USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
+PROFILE_DIR=${PROFILE_DIR:-/home/browser/.chrome-profiles/default}
 
-# Use temp directory if /data is not writable
+# Create user directories with proper permissions
+mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
+chmod 755 "${USER_DIR}" "${PROFILE_DIR}" 2>/dev/null || true
+
+# Test if directory is writable
 if ! touch "${USER_DIR}/.test" 2>/dev/null; then
-    echo "Warning: ${USER_DIR} is not writable, using temporary directory"
-    USER_DIR="/tmp/chrome-data"
-    mkdir -p "${USER_DIR}"
+    echo "Warning: ${USER_DIR} is not writable, using home directory"
+    USER_DIR="/home/browser/.chrome-data-fallback"
+    PROFILE_DIR="/home/browser/.chrome-profiles-fallback/default"
+    mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
 fi
 rm -f "${USER_DIR}/.test" 2>/dev/null || true
 
@@ -94,11 +99,6 @@ CHROME_FLAGS=(
   "--disable-ipc-flooding-protection"
   "--no-first-run"
   "--no-default-browser-check"
-  "--disable-default-apps"
-  "--disable-extensions"
-  "--disable-plugins"
-  "--disable-sync"
-  "--disable-background-networking"
   "--window-size=${SCREEN_WIDTH},${SCREEN_HEIGHT}"
   "--force-device-scale-factor=1"
 )
@@ -112,4 +112,3 @@ fi
 
 # Start browser in foreground so container stays alive
 exec "${CHROME_BIN}" "${FC_ARGS[@]}" "${CHROME_FLAGS[@]}"
-

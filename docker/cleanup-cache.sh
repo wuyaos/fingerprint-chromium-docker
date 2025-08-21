@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Configuration
-USER_DIR=${USER_DIR:-/data}
+USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
 TEMP_DIR="/tmp"
 LOG_FILE="/var/log/cache-cleanup.log"
 

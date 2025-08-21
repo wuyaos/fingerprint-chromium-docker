@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
       args:
         FC_VERSION: "136.0.7103.113"
-    container_name: fingerprint-chromium-optimized
+    container_name: fingerprint-chromium
     ports:
       - "9222:9222"  # Chrome DevTools Protocol
       - "6081:6081"  # noVNC web interface
@@ -25,8 +25,8 @@ services:
       # - PROXY_SERVER=http://proxy:8080
       # - CHROME_EXTRA_ARGS=--disable-web-security
     volumes:
-      - ./data:/data
-      - ./profiles:/profiles
+      - ./chrome-data:/home/browser/.chrome-data
+      - ./chrome-profiles:/home/browser/.chrome-profiles
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:9222/json/version"]

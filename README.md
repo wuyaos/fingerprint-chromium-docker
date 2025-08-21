@@ -6,6 +6,7 @@
 - Chrome DevTools Protocol 远程调试端口9222，支持DrissionPage连接
 - 中国本地化：默认Asia/Shanghai时区、zh-CN语言、CJK字体支持
 - 自动缓存清理：每4小时自动清理浏览器缓存和临时文件
+- 支持扩展和插件：可安装Chrome扩展程序和插件
 
 ## 功能特性
 
@@ -62,15 +63,35 @@ c.goto('https://www.example.com')
 print(c.title)
 ```
 
-挂载持久化用户数据目录以保留配置文件：
+挂载持久化用户数据目录以保留配置文件和扩展：
 
 ```bash
 docker run -d --name fpc \
   -p 9222:9222 -p 6081:6081 \
   -e VNC_PASSWORD=changeme \
-  -v $(pwd)/data:/data \
+  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
+  -v $(pwd)/chrome-profiles:/home/browser/.chrome-profiles \
   wuyaos/fingerprint-chromium-docker:latest
 ```
+
+## 扩展和插件支持
+
+容器支持安装和使用Chrome扩展程序：
+
+1. **通过noVNC界面安装**：
+   - 访问 http://localhost:6081
+   - 在浏览器中访问Chrome Web Store
+   - 正常安装扩展程序
+
+2. **数据持久化**：
+   - 扩展数据保存在 `/home/browser/.chrome-data` 目录
+   - 挂载此目录可保留扩展配置
+
+3. **推荐扩展**：
+   - uBlock Origin（广告拦截）
+   - Proxy SwitchyOmega（代理切换）
+   - User-Agent Switcher（用户代理切换）
+   - Cookie Editor（Cookie管理）
 
 ## 配置说明
 

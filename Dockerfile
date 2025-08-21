@@ -72,9 +72,10 @@ RUN set -eux; \
 RUN set -eux; \
     useradd -m -s /bin/bash browser; \
     echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers; \
-    mkdir -p /home/browser/Downloads /data /profiles /tmp/.X11-unix; \
+    mkdir -p /home/browser/Downloads /home/browser/.chrome-data /home/browser/.chrome-profiles /tmp/.X11-unix; \
     chmod 1777 /tmp/.X11-unix; \
-    chown -R browser:browser /home/browser /data /profiles /opt/fingerprint-chromium
+    chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles; \
+    chown -R browser:browser /home/browser /opt/fingerprint-chromium
 
 # ------- Copy startup and cleanup scripts -------
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
