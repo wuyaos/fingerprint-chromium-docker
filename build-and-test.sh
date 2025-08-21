@@ -32,13 +32,13 @@ log_header() {
 }
 
 # Configuration
-IMAGE_NAME="fingerprint-chromium-new"
+IMAGE_NAME="fingerprint-chromium"
 FC_VERSION="136.0.7103.113"
 
 # Functions
 cleanup() {
     log_info "Cleaning up..."
-    docker-compose -f docker-compose.new.yml down --remove-orphans 2>/dev/null || true
+    docker-compose down --remove-orphans 2>/dev/null || true
     docker rmi "${IMAGE_NAME}:latest" 2>/dev/null || true
 }
 
@@ -46,7 +46,7 @@ build_image() {
     log_header "Building Docker Image"
     
     log_info "Building ${IMAGE_NAME} with fingerprint-chromium ${FC_VERSION}..."
-    docker build -f Dockerfile.new -t "${IMAGE_NAME}:latest" \
+    docker build -f Dockerfile -t "${IMAGE_NAME}:latest" \
         --build-arg FC_VERSION="${FC_VERSION}" \
         --progress=plain \
         .
@@ -87,18 +87,18 @@ test_container() {
     export PGID=$(id -g)
     
     log_info "Starting container with PUID=${PUID}, PGID=${PGID}..."
-    docker-compose -f docker-compose.new.yml up -d fingerprint-chromium-new
+    docker-compose up -d fingerprint-chromium
     
     # Wait for container to be ready
     log_info "Waiting for container to be ready..."
     for i in {1..60}; do
-        if docker-compose -f docker-compose.new.yml ps | grep -q "Up"; then
+        if docker-compose ps | grep -q "Up"; then
             log_success "Container is running"
             break
         fi
         if [ $i -eq 60 ]; then
             log_error "Container failed to start within 60 seconds"
-            docker-compose -f docker-compose.new.yml logs
+            docker-compose logs
             exit 1
         fi
         sleep 1
@@ -115,7 +115,7 @@ test_container() {
         fi
         if [ $i -eq 30 ]; then
             log_error "Chrome DevTools API is not responding"
-            docker-compose -f docker-compose.new.yml logs
+            docker-compose logs
             exit 1
         fi
         sleep 2
@@ -136,7 +136,7 @@ test_container() {
     
     # Show container logs
     log_info "Container logs (last 20 lines):"
-    docker-compose -f docker-compose.new.yml logs --tail=20
+    docker-compose logs --tail=20
 }
 
 show_usage() {
@@ -156,13 +156,13 @@ show_usage() {
     echo "  BROWSER_LANG: zh-CN"
     echo
     echo "Data directories:"
-    echo "  Chrome Data: ./chrome-data-new"
-    echo "  Chrome Profiles: ./chrome-profiles-new"
+    echo "  Chrome Data: ./chrome-data"
+    echo "  Chrome Profiles: ./chrome-profiles"
     echo
     echo "Commands:"
-    echo "  Stop: docker-compose -f docker-compose.new.yml down"
-    echo "  Logs: docker-compose -f docker-compose.new.yml logs -f"
-    echo "  Shell: docker-compose -f docker-compose.new.yml exec fingerprint-chromium-new bash"
+    echo "  Stop: docker-compose down"
+    echo "  Logs: docker-compose logs -f"
+    echo "  Shell: docker-compose exec fingerprint-chromium bash"
 }
 
 # Main execution

@@ -37,6 +37,8 @@ data/
 profiles/
 chrome-data/
 chrome-profiles/
+chrome-data-*/
+chrome-profiles-*/
 *.pid
 *.seed
 *.pid.lock

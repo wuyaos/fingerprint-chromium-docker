@@ -1,18 +1,49 @@
 # syntax=docker/dockerfile:1.6
-# Multi-stage build for optimized fingerprint-chromium image
+# Optimized fingerprint-chromium Docker image based on webvnc
 
-# -------- Stage 1: Download and extract fingerprint-chromium --------
-ARG UBUNTU_VERSION=22.04
-FROM ubuntu:${UBUNTU_VERSION} AS downloader
+FROM docker.io/xiuxiu10201/webvnc:latest
 
 ARG FC_VERSION=136.0.7103.113
-# Check the release page for a newer matching Linux tarball name if needed
 ARG FC_TARBALL="ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz"
 ARG FC_URL="https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/${FC_TARBALL}"
 
-# Install minimal tools for downloading
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates xz-utils \
+# Environment variables
+ENV \
+    XDG_CONFIG_HOME=/tmp \
+    XDG_CACHE_HOME=/tmp \
+    HOME=/opt \
+    DISPLAY=:0 \
+    WEB_PORT=6081 \
+    VNC_PORT=5901 \
+    REMOTE_DEBUGGING_PORT=9222 \
+    SCREEN_WIDTH=1280 \
+    SCREEN_HEIGHT=800 \
+    VNC_PASSWORD=changeme \
+    FINGERPRINT_SEED=1000 \
+    FINGERPRINT_PLATFORM=linux \
+    FINGERPRINT_BRAND=Chrome \
+    FINGERPRINT_BRAND_VERSION="" \
+    ACCEPT_LANG="zh-CN,zh" \
+    BROWSER_LANG="zh-CN" \
+    PROXY_SERVER="" \
+    CHROME_EXTRA_ARGS="" \
+    PUID=1000 \
+    PGID=1000 \
+    UMASK_SET=022 \
+    TZ=Asia/Shanghai \
+    LD_LIBRARY_PATH=/opt/fingerprint-chromium:$LD_LIBRARY_PATH
+
+# Install runtime dependencies and download tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libnss3 libgbm1 libfreetype6 libharfbuzz0b \
+        libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
+        libxext6 libxfixes3 libxkbcommon0 \
+        libdrm2 libgl1-mesa-glx libasound2 \
+        fonts-dejavu fonts-liberation fonts-noto-cjk \
+        gosu curl ca-certificates xz-utils \
+        sudo cron \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Download and extract fingerprint-chromium
@@ -22,105 +53,120 @@ RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
     && rm -f /tmp/fc.tar.xz \
     && chmod +x /opt/fingerprint-chromium/chrome
 
-# -------- Stage 2: Runtime image --------
-FROM ubuntu:${UBUNTU_VERSION}
-
-# Runtime environment variables
-ENV LANG=en_US.UTF-8 \
-    LANGUAGE=en_US:en \
-    LC_ALL=en_US.UTF-8 \
-    DISPLAY=:0 \
-    SCREEN_WIDTH=1280 \
-    SCREEN_HEIGHT=800 \
-    SCREEN_DEPTH=24 \
-    VNC_PASSWORD=changeme \
-    TZ=Asia/Shanghai \
-    TIMEZONE=Asia/Shanghai \
-    FINGERPRINT_SEED=1000 \
-    FINGERPRINT_PLATFORM=linux \
-    FINGERPRINT_BRAND=Chrome \
-    FINGERPRINT_BRAND_VERSION="" \
-    ACCEPT_LANG="zh-CN,zh" \
-    BROWSER_LANG="zh-CN" \
-    PROXY_SERVER="" \
-    CHROME_EXTRA_ARGS="" \
-    REMOTE_DEBUGGING_PORT=9222 \
-    PUID=1000 \
-    PGID=1000 \
-    UMASK_SET=022
-
-# Install basic tools first
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        sudo cron locales curl ca-certificates gosu \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install X11 and VNC dependencies
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        xvfb x11vnc openbox \
-        novnc websockify \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install fonts
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        fonts-dejavu fonts-liberation fonts-noto-cjk \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Chromium runtime libraries
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libnss3 libfreetype6 libharfbuzz0b \
-        libx11-6 libxcomposite1 libxdamage1 libxi6 libxrandr2 libxrender1 libxtst6 \
-        libxext6 libxfixes3 libxkbcommon0 \
-        libdrm2 libgbm1 libgl1-mesa-glx \
-        libasound2 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set timezone and locale
-RUN ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
-    && (locale-gen en_US.UTF-8 || echo "locale-gen not available") \
-    && mkdir -p /opt /var/log/supervisor
-
-# Copy fingerprint-chromium from downloader stage
-COPY --from=downloader /opt/fingerprint-chromium /opt/fingerprint-chromium
-RUN ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome
-
-# Create non-root user and setup directories (single layer)
+# Create browser user and setup directories
 RUN useradd -m -s /bin/bash browser \
-    && echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers \
-    && mkdir -p /home/browser/Downloads \
+    && echo "browser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    && mkdir -p /opt/Desktop \
     && mkdir -p /home/browser/.chrome-data \
-    && mkdir -p /home/browser/.chrome-profiles \
     && mkdir -p /home/browser/.chrome-profiles/default \
-    && mkdir -p /tmp/.X11-unix \
-    && chmod 1777 /tmp/.X11-unix \
-    && chmod 755 /home/browser/.chrome-data \
-    && chmod 755 /home/browser/.chrome-profiles \
-    && chmod 755 /home/browser/.chrome-profiles/default \
+    && mkdir -p /etc/fingerprint-chromium \
+    && chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles \
+    && chmod 777 -R /opt /etc/fingerprint-chromium \
     && chown -R browser:browser /home/browser /opt/fingerprint-chromium
 
-# ------- Copy startup and cleanup scripts -------
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY docker/cleanup-cache.sh /usr/local/bin/cleanup-cache.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/cleanup-cache.sh
+# Create desktop shortcut
+RUN echo "[Desktop Entry]" > /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Version=1.0" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Type=Application" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Name=Fingerprint Chromium" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Comment=Privacy-focused Chromium with fingerprint protection" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Exec=/opt/fingerprint-chromium/chrome" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Icon=chromium" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Terminal=false" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && echo "Categories=Network;WebBrowser;" >> /opt/Desktop/fingerprint-chromium.desktop \
+    && chmod +x /opt/Desktop/fingerprint-chromium.desktop
 
-EXPOSE 9222 5901 6081
+# Create startup script
+RUN echo '#!/bin/bash' > /opt/fingerprint-chromium/start.sh \
+    && echo 'set -euo pipefail' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Handle PUID/PGID' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ "${PUID:-1000}" != "$(id -u)" ] || [ "${PGID:-1000}" != "$(id -g)" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    echo "Adjusting user permissions..."' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    if [ "${PUID:-1000}" = "0" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        USER_DIR="/root/.chrome-data"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        PROFILE_DIR="/root/.chrome-profiles/default"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        mkdir -p "$USER_DIR" "$PROFILE_DIR"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    else' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        groupadd -g "${PGID:-1000}" browsergroup 2>/dev/null || true' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        usermod -u "${PUID:-1000}" -g "${PGID:-1000}" browser 2>/dev/null || true' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        chown -R "${PUID:-1000}:${PGID:-1000}" /home/browser /opt/fingerprint-chromium' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        USER_DIR="/home/browser/.chrome-data"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '        PROFILE_DIR="/home/browser/.chrome-profiles/default"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'else' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    USER_DIR="/home/browser/.chrome-data"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    PROFILE_DIR="/home/browser/.chrome-profiles/default"' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Ensure directories exist' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'mkdir -p "$USER_DIR" "$PROFILE_DIR"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Build Chrome arguments' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'CHROME_ARGS=(' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --test-type' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-backgrounding-occluded-windows' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --user-data-dir="$USER_DIR"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --profile-directory="default"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-cache' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-logging' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-notifications' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --no-default-browser-check' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-background-networking' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --enable-features=ParallelDownloading' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --start-maximized' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --no-sandbox' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --ignore-certificate-errors' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --disable-dev-shm-usage' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --no-first-run' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --lang="${BROWSER_LANG:-zh-CN}"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --accept-lang="${ACCEPT_LANG:-zh-CN,zh}"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --remote-debugging-address=0.0.0.0' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    --remote-debugging-port="${REMOTE_DEBUGGING_PORT:-9222}"' >> /opt/fingerprint-chromium/start.sh \
+    && echo ')' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Add fingerprint protection arguments' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ -n "${FINGERPRINT_SEED:-}" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    CHROME_ARGS+=(--fingerprint-seed="${FINGERPRINT_SEED}")' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ -n "${FINGERPRINT_PLATFORM:-}" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    CHROME_ARGS+=(--fingerprint-platform="${FINGERPRINT_PLATFORM}")' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ -n "${FINGERPRINT_BRAND:-}" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    CHROME_ARGS+=(--fingerprint-brand="${FINGERPRINT_BRAND}")' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Add proxy if specified' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ -n "${PROXY_SERVER:-}" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    CHROME_ARGS+=(--proxy-server="${PROXY_SERVER}")' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Add extra arguments' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'if [ -n "${CHROME_EXTRA_ARGS:-}" ]; then' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    eval "EXTRA_ARGS=($CHROME_EXTRA_ARGS)"' >> /opt/fingerprint-chromium/start.sh \
+    && echo '    CHROME_ARGS+=("${EXTRA_ARGS[@]}")' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'fi' >> /opt/fingerprint-chromium/start.sh \
+    && echo '' >> /opt/fingerprint-chromium/start.sh \
+    && echo '# Start fingerprint-chromium' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'echo "Starting fingerprint-chromium with args: ${CHROME_ARGS[*]}"' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'cd /opt/fingerprint-chromium' >> /opt/fingerprint-chromium/start.sh \
+    && echo 'exec ./chrome "${CHROME_ARGS[@]}" >/tmp/fingerprint-chromium.log 2>&1 &' >> /opt/fingerprint-chromium/start.sh \
+    && chmod +x /opt/fingerprint-chromium/start.sh
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -sf http://127.0.0.1:${REMOTE_DEBUGGING_PORT}/json/version >/dev/null || exit 1
+# Create main run script
+COPY run.sh /opt/run.sh
+RUN chmod +x /opt/run.sh
 
+# Expose ports
+EXPOSE 6081 5901 9222
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 \
+    CMD curl -sf http://127.0.0.1:${REMOTE_DEBUGGING_PORT}/json/version >/dev/null || exit 1
+
+# Set working directory and user
+WORKDIR /opt
 USER browser
-WORKDIR /home/browser
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
+# Start command
+CMD ["bash", "/opt/run.sh"]

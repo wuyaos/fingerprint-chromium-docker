@@ -1,268 +1,223 @@
-# 基于Docker的fingerprint-chromium浏览器容器
+# Fingerprint Chromium Docker - 新版本
 
-本项目提供基于Ubuntu的优化Docker镜像，集成以下功能：
-- fingerprint-chromium (adryfish/fingerprint-chromium) 具备隐身指纹特性
-- Xvfb + x11vnc + noVNC 实现实时Web界面查看
-- Chrome DevTools Protocol 远程调试端口9222，支持DrissionPage连接
-- 中国本地化：默认Asia/Shanghai时区、zh-CN语言、CJK字体支持
-- 自动缓存清理：每4小时自动清理浏览器缓存和临时文件
-- 支持扩展和插件：可安装Chrome扩展程序和插件
+基于webvnc的全新fingerprint-chromium Docker镜像，参考115浏览器的构建方式，提供更好的VNC支持和用户体验。
 
-## 功能特性
+## 🚀 新版本特性
 
-- 远程调试：9222端口暴露
-- VNC/noVNC：通过Web界面6081端口或VNC 5901端口实时查看浏览器
-- Alpine基础镜像 + glibc兼容层
-- 无硬编码敏感信息，通过环境变量配置
-- 基于/json/version的健康检查
+### 1. **基于成熟的webvnc基础镜像**
+- 使用 `xiuxiu10201/webvnc:latest` 作为基础镜像
+- 内置完整的VNC和noVNC支持
+- 更稳定的X11环境
 
-## 快速开始
+### 2. **完整的PUID/PGID权限管理**
+- 智能处理用户权限
+- 支持root用户运行（PUID=0）
+- 自动用户创建和权限修复
 
-本地构建：
+### 3. **优化的启动流程**
+- 多阶段构建减小镜像体积
+- 智能服务启动顺序
+- 完整的健康检查
+
+### 4. **增强的fingerprint保护**
+- 完整的fingerprint-chromium参数支持
+- 可配置的指纹保护选项
+- 支持代理和自定义参数
+
+## 📦 快速开始
+
+### 构建和测试
 
 ```bash
-# Ubuntu版本（推荐，更好的兼容性）
-docker build -t wuyaos/fingerprint-chromium-docker:latest .
+# 一键构建和测试
+./build-and-test.sh all
 
-# Alpine版本（更小的镜像体积）
-docker build -f Dockerfile.alpine -t wuyaos/fingerprint-chromium-docker:alpine .
+# 或分步执行
+./build-and-test.sh build   # 仅构建
+./build-and-test.sh test    # 仅测试
+./build-and-test.sh clean   # 清理
 ```
 
-运行容器：
+### 使用docker-compose
+
+```bash
+# 设置用户权限
+export PUID=$(id -u)
+export PGID=$(id -g)
+
+# 启动服务
+docker-compose -f docker-compose.new.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose.new.yml logs -f
+```
+
+### 直接运行
 
 ```bash
 # 基础运行
-docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
-  -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
-  -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
-  --name fpc wuyaos/fingerprint-chromium-docker:latest
-
-# 使用PUID/PGID解决权限问题（推荐）
-docker run --rm -p 9222:9222 -p 6081:6081 \
-  -e PUID=$(id -u) -e PGID=$(id -g) -e UMASK_SET=022 \
-  -e VNC_PASSWORD=changeme -e FINGERPRINT_SEED=2025 \
-  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
-  --name fpc wuyaos/fingerprint-chromium-docker:latest
-```
-
-或使用特定版本：
-
-```bash
-# Ubuntu版本
-docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
-  -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
-  -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
-  --name fpc wuyaos/fingerprint-chromium-docker:136.0.7103.113
-
-# Alpine版本（更小体积）
-docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
-  -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
-  -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
-  --name fpc wuyaos/fingerprint-chromium-docker:136.0.7103.113-alpine
-```
-
-在浏览器中打开noVNC界面：
-- <http://localhost:6081>
-  - 如有提示，使用VNC_PASSWORD指定的密码
-
-验证远程调试：
-- <http://localhost:9222/json/version> 应返回JSON数据
-
-## 与DrissionPage配合使用
-
-Python示例代码，通过CDP连接：
-
-```python
-from DrissionPage import Chromium
-
-# 连接到运行中容器的CDP端点
-c = Chromium(address='127.0.0.1', port=9222)
-# 正常使用，例如打开标签页
-c.goto('https://www.example.com')
-print(c.title)
-```
-
-挂载持久化用户数据目录以保留配置文件和扩展：
-
-```bash
-docker run -d --name fpc \
-  -p 9222:9222 -p 6081:6081 \
+docker run -d --name fpc-new \
+  -p 9222:9222 -p 6081:6081 -p 5901:5901 \
+  -e PUID=$(id -u) -e PGID=$(id -g) \
   -e VNC_PASSWORD=changeme \
+  -e FINGERPRINT_SEED=2025 \
+  fingerprint-chromium-new:latest
+
+# 带数据持久化
+docker run -d --name fpc-new \
+  -p 9222:9222 -p 6081:6081 -p 5901:5901 \
+  -e PUID=$(id -u) -e PGID=$(id -g) \
+  -e VNC_PASSWORD=changeme \
+  -e FINGERPRINT_SEED=2025 \
   -v $(pwd)/chrome-data:/home/browser/.chrome-data \
   -v $(pwd)/chrome-profiles:/home/browser/.chrome-profiles \
-  wuyaos/fingerprint-chromium-docker:latest
+  fingerprint-chromium-new:latest
 ```
 
-## 扩展和插件支持
+## 🌐 访问方式
 
-容器支持安装和使用Chrome扩展程序：
+启动后可通过以下方式访问：
 
-1. **通过noVNC界面安装**：
-   - 访问 http://localhost:6081
-   - 在浏览器中访问Chrome Web Store
-   - 正常安装扩展程序
+- **noVNC Web界面**: http://localhost:6081
+- **VNC客户端**: localhost:5901 (密码: changeme)
+- **Chrome DevTools**: http://localhost:9222
+- **健康检查**: http://localhost:9222/json/version
 
-2. **数据持久化**：
-   - 扩展数据保存在 `/home/browser/.chrome-data` 目录
-   - 挂载此目录可保留扩展配置
+## ⚙️ 环境变量配置
 
-3. **推荐扩展**：
-   - uBlock Origin（广告拦截）
-   - Proxy SwitchyOmega（代理切换）
-   - User-Agent Switcher（用户代理切换）
-   - Cookie Editor（Cookie管理）
-
-## 权限问题解决方案
-
-### 使用PUID/PGID（推荐方法）
-
-容器支持PUID/PGID环境变量来解决文件权限问题：
-
+### 基础配置
 ```bash
-# 获取当前用户的UID和GID
-echo "当前用户 UID: $(id -u)"
-echo "当前用户 GID: $(id -g)"
+DISPLAY=:0                    # X11显示
+WEB_PORT=6081                # noVNC web端口
+VNC_PORT=5901                # VNC端口
+REMOTE_DEBUGGING_PORT=9222   # Chrome调试端口
+SCREEN_WIDTH=1280            # 屏幕宽度
+SCREEN_HEIGHT=800            # 屏幕高度
+VNC_PASSWORD=changeme        # VNC密码
+```
 
-# 使用PUID/PGID运行容器
-docker run -d --name fpc \
+### 权限管理
+```bash
+PUID=1000                    # 用户ID
+PGID=1000                    # 组ID
+UMASK_SET=022               # 文件权限掩码
+```
+
+### Fingerprint配置
+```bash
+FINGERPRINT_SEED=1000        # 指纹种子
+FINGERPRINT_PLATFORM=linux  # 平台标识
+FINGERPRINT_BRAND=Chrome     # 浏览器品牌
+FINGERPRINT_BRAND_VERSION="" # 品牌版本
+BROWSER_LANG=zh-CN          # 浏览器语言
+ACCEPT_LANG=zh-CN,zh        # 接受语言
+```
+
+### 网络配置
+```bash
+PROXY_SERVER=""             # 代理服务器
+CHROME_EXTRA_ARGS=""        # 额外Chrome参数
+```
+
+## 🔧 高级用法
+
+### 1. 无头模式运行
+```bash
+docker run -d --name fpc-headless \
+  -p 9223:9222 \
+  -e CHROME_EXTRA_ARGS="--headless --disable-gpu" \
+  -e FINGERPRINT_SEED=3000 \
+  fingerprint-chromium-new:latest
+```
+
+### 2. 使用代理
+```bash
+docker run -d --name fpc-proxy \
   -p 9222:9222 -p 6081:6081 \
-  -e PUID=$(id -u) \
-  -e PGID=$(id -g) \
-  -e UMASK_SET=022 \
-  -e VNC_PASSWORD=changeme \
-  -v $(pwd)/chrome-data:/home/browser/.chrome-data \
-  -v $(pwd)/chrome-profiles:/home/browser/.chrome-profiles \
-  wuyaos/fingerprint-chromium-docker:latest
+  -e PROXY_SERVER="http://proxy.example.com:8080" \
+  -e FINGERPRINT_SEED=4000 \
+  fingerprint-chromium-new:latest
 ```
 
-### 环境变量说明
-
-- **PUID**: 容器内browser用户的UID（默认1000）
-- **PGID**: 容器内browser用户的GID（默认1000）
-- **UMASK_SET**: 文件创建权限掩码（默认022）
-
-### 权限问题排查
-
-如果仍有权限问题，可以：
-
-1. **检查目录权限**：
-   ```bash
-   ls -la chrome-data/
-   ls -la chrome-profiles/
-   ```
-
-2. **手动修复权限**：
-   ```bash
-   sudo chown -R $(id -u):$(id -g) chrome-data/
-   sudo chown -R $(id -u):$(id -g) chrome-profiles/
-   ```
-
-3. **使用docker-compose**：
-   ```bash
-   # 设置环境变量
-   export PUID=$(id -u)
-   export PGID=$(id -g)
-
-   # 启动服务
-   docker-compose up -d
-   ```
-
-## 配置说明
-
-环境变量：
-- REMOTE_DEBUGGING_PORT (默认 9222)
-- SCREEN_WIDTH (默认 1280)
-- SCREEN_HEIGHT (默认 800)
-- SCREEN_DEPTH (默认 24)
-- VNC_PASSWORD (默认 changeme)
-- FINGERPRINT_SEED (默认 1000)
-- FINGERPRINT_PLATFORM (linux|windows|macos，默认 linux)
-- FINGERPRINT_BRAND (Chrome|Edge|Opera|Vivaldi 或自定义，默认 Chrome)
-- FINGERPRINT_BRAND_VERSION (可选)
-- BROWSER_LANG (默认 zh-CN)
-- ACCEPT_LANG (默认 zh-CN,zh)
-- TIMEZONE (默认 Asia/Shanghai)
-- PROXY_SERVER (可选，例如 <http://host:port>)
-- CHROME_EXTRA_ARGS (可选额外参数)
-
-容器运行Chromium时使用的参数：
-
-- --remote-debugging-port=${REMOTE_DEBUGGING_PORT}
-- --user-data-dir=/data
-- --lang, --accept-lang
-- --fingerprint* 以及Docker友好的参数如 --no-sandbox
-
-端口说明：
-
-- 9222: Chrome DevTools
-- 5901: VNC (x11vnc)
-- 6081: noVNC (web)
-
-## 安全考虑
-
-- 无硬编码凭据
-- 在公共主机上暴露端口时，建议在防火墙/反向代理后运行
-- 修改VNC_PASSWORD
-- 考虑使用防火墙规则限制对9222端口的访问
-
-## CI/CD (GitHub Actions)
-
-本仓库包含 .github/workflows/docker-build.yml，功能如下：
-
-- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本和基础镜像
-- 支持Ubuntu和Alpine两种基础镜像
-- 推送到Docker Hub：`wuyaos/fingerprint-chromium-docker`
-- 目标平台：linux/amd64（已移除QEMU以提高构建速度）
-- 提供标签：
-  - Ubuntu: `latest`, `136.0.7103.113`
-  - Alpine: `latest-alpine`, `136.0.7103.113-alpine`
-
-所需的GitHub仓库密钥：
-
-- DOCKERHUB_USERNAME (您的Docker Hub用户名)
-- DOCKERHUB_TOKEN (Docker Hub访问令牌)
-
-## 健康检查
-
-容器健康状态基于 <http://127.0.0.1:9222/json/version>。
-
-## 注意事项
-
-- fingerprint-chromium Linux制品在构建时下载；如需更新版本请修改Dockerfile中的FC_VERSION
-- 基于Ubuntu 22.04，提供最佳兼容性和稳定性
-- 自动缓存清理每4小时运行一次，保持容器性能
-- 镜像已优化，移除不必要的包以减小体积
-
-## 镜像优化技术
-
-本项目采用了多种Docker镜像瘦身技术，参考腾讯云的镜像优化最佳实践：
-
-### 1. 多阶段构建
-- **构建阶段**：下载和解压fingerprint-chromium
-- **运行阶段**：只包含运行时必需的文件
-- **效果**：避免构建工具污染最终镜像
-
-### 2. 双基础镜像选择
-- **Ubuntu 22.04**：更好的兼容性，推荐用于生产环境
-- **Alpine Edge**：极致精简，镜像体积更小
-- 使用清华大学镜像源加速下载
-- 单层安装，减少镜像层数
-
-### 3. 优化的.dockerignore
-- 忽略文档、示例、测试文件
-- 排除本地数据目录
-- 避免不必要文件进入构建上下文
-
-### 4. 镜像分析和压缩工具
+### 3. 自定义Chrome参数
 ```bash
-# 分析镜像层和大小
-./scripts/analyze-image.sh [镜像名称]
-
-# 压缩镜像用于传输
-./scripts/compress-image.sh [镜像名称] [输出目录]
+docker run -d --name fpc-custom \
+  -p 9222:9222 -p 6081:6081 \
+  -e CHROME_EXTRA_ARGS="--disable-web-security --allow-running-insecure-content" \
+  fingerprint-chromium-new:latest
 ```
 
-### 5. 运行时优化
-- 智能缓存清理（每4小时）
-- 最小化权限配置
-- 精简Chrome启动参数
+## 📊 镜像对比
+
+| 特性 | 旧版本 | 新版本 |
+|------|--------|--------|
+| 基础镜像 | Ubuntu 22.04 | webvnc:latest |
+| VNC支持 | 手动配置 | 内置完整支持 |
+| noVNC | 需要安装 | 开箱即用 |
+| 权限管理 | 基础支持 | 完整PUID/PGID |
+| 启动脚本 | 简单 | 智能化 |
+| 健康检查 | 基础 | 完整 |
+
+## 🛠️ 开发和调试
+
+### 进入容器
+```bash
+docker-compose -f docker-compose.new.yml exec fingerprint-chromium-new bash
+```
+
+### 查看日志
+```bash
+# 容器日志
+docker-compose -f docker-compose.new.yml logs -f
+
+# Chrome日志
+docker exec fpc-new cat /tmp/fingerprint-chromium.log
+```
+
+### 重启服务
+```bash
+docker-compose -f docker-compose.new.yml restart
+```
+
+## 🔍 故障排除
+
+### 1. 权限问题
+确保设置了正确的PUID/PGID：
+```bash
+export PUID=$(id -u)
+export PGID=$(id -g)
+```
+
+### 2. VNC连接问题
+检查VNC密码和端口：
+```bash
+docker logs fpc-new | grep vnc
+```
+
+### 3. Chrome启动问题
+查看Chrome日志：
+```bash
+docker exec fpc-new cat /tmp/fingerprint-chromium.log
+```
+
+## 📝 更新日志
+
+### v2.0.0 (新版本)
+- 基于webvnc重构
+- 完整的PUID/PGID支持
+- 智能启动流程
+- 增强的错误处理
+- 完整的健康检查
+
+### v1.x (旧版本)
+- 基于Ubuntu构建
+- 基础VNC支持
+- 简单权限管理
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request来改进这个项目！
+
+## 📄 许可证
+
+MIT License
