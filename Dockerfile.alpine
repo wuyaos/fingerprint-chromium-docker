@@ -1,17 +1,15 @@
 # syntax=docker/dockerfile:1.6
-# Alpine-based optimized image with fingerprint-chromium
+# Simplified Alpine-based image with fingerprint-chromium
 
 # -------- Stage 1: Download and extract fingerprint-chromium --------
-FROM alpine:edge AS downloader
+FROM alpine:3.18 AS downloader
 
 ARG FC_VERSION=136.0.7103.113
 ARG FC_TARBALL="ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz"
 ARG FC_URL="https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/${FC_TARBALL}"
 
-# 使用清华大学源加速下载
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
-    && apk update --allow-untrusted \
-    && apk add --no-cache curl ca-certificates xz --allow-untrusted
+# Install minimal tools for downloading
+RUN apk add --no-cache curl ca-certificates xz
 
 # Download and extract fingerprint-chromium
 RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
@@ -21,7 +19,7 @@ RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
     && chmod +x /opt/fingerprint-chromium/chrome
 
 # -------- Stage 2: Runtime image --------
-FROM alpine:edge
+FROM alpine:3.18
 
 # Runtime environment variables
 ENV LANG=zh_CN.UTF-8 \
@@ -44,35 +42,28 @@ ENV LANG=zh_CN.UTF-8 \
     CHROME_EXTRA_ARGS="" \
     REMOTE_DEBUGGING_PORT=9222
 
-# 使用清华大学源并安装基础依赖
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
-    && apk update --allow-untrusted \
-    && apk add --no-cache --allow-untrusted \
-        bash sudo dcron \
+# Install basic dependencies
+RUN apk add --no-cache \
+        bash sudo dcron wget curl ca-certificates \
         xvfb x11vnc openbox \
         novnc websockify \
-        ttf-dejavu fontconfig icu-data-full \
-        wqy-zenhei --repository http://mirrors.tuna.tsinghua.edu.cn/alpine/edge/testing \
-    && mkfontscale && mkfontdir && fc-cache
+        ttf-dejavu ttf-liberation fontconfig
 
-# 安装glibc以支持fingerprint-chromium
-RUN apk add --no-cache ca-certificates --allow-untrusted \
-    && wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
-    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-2.35-r0.apk \
-    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-bin-2.35-r0.apk \
-    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-i18n-2.35-r0.apk \
-    && apk add --allow-untrusted glibc-bin-2.35-r0.apk glibc-i18n-2.35-r0.apk glibc-2.35-r0.apk \
-    && /usr/glibc-compat/bin/localedef -i zh_CN -f UTF-8 zh_CN.UTF-8 \
+# Install glibc for fingerprint-chromium compatibility
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+    && GLIBC_VER=2.34-r0 \
+    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk \
+    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk \
+    && apk add --allow-untrusted glibc-${GLIBC_VER}.apk glibc-bin-${GLIBC_VER}.apk \
     && rm -rf *.apk /var/cache/apk/*
 
-# 安装Chromium运行时依赖
-RUN apk add --no-cache --allow-untrusted \
+# Install minimal Chromium runtime dependencies
+RUN apk add --no-cache \
         nss freetype harfbuzz \
         libx11 libxcomposite libxdamage libxi libxrandr libxrender libxtst \
         libxext libxfixes \
-        mesa-gl mesa-dri-gallium \
+        mesa-gl \
         alsa-lib \
-        eudev \
     && rm -rf /var/cache/apk/*
 
 # Copy fingerprint-chromium from downloader stage
