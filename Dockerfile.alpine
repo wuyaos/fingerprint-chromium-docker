@@ -1,0 +1,102 @@
+# syntax=docker/dockerfile:1.6
+# Alpine-based optimized image with fingerprint-chromium
+
+# -------- Stage 1: Download and extract fingerprint-chromium --------
+FROM alpine:edge AS downloader
+
+ARG FC_VERSION=136.0.7103.113
+ARG FC_TARBALL="ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz"
+ARG FC_URL="https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/${FC_TARBALL}"
+
+# 使用清华大学源加速下载
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+    && apk update --allow-untrusted \
+    && apk add --no-cache curl ca-certificates xz --allow-untrusted
+
+# Download and extract fingerprint-chromium
+RUN curl -fL "${FC_URL}" -o /tmp/fc.tar.xz \
+    && mkdir -p /opt/fingerprint-chromium \
+    && tar -xJf /tmp/fc.tar.xz -C /opt/fingerprint-chromium --strip-components=1 \
+    && rm -f /tmp/fc.tar.xz \
+    && chmod +x /opt/fingerprint-chromium/chrome
+
+# -------- Stage 2: Runtime image --------
+FROM alpine:edge
+
+# Runtime environment variables
+ENV LANG=zh_CN.UTF-8 \
+    LANGUAGE=zh_CN.UTF-8 \
+    LC_ALL=zh_CN.UTF-8 \
+    DISPLAY=:0 \
+    SCREEN_WIDTH=1280 \
+    SCREEN_HEIGHT=800 \
+    SCREEN_DEPTH=24 \
+    VNC_PASSWORD=changeme \
+    TZ=Asia/Shanghai \
+    TIMEZONE=Asia/Shanghai \
+    FINGERPRINT_SEED=1000 \
+    FINGERPRINT_PLATFORM=linux \
+    FINGERPRINT_BRAND=Chrome \
+    FINGERPRINT_BRAND_VERSION="" \
+    ACCEPT_LANG="zh-CN,zh" \
+    BROWSER_LANG="zh-CN" \
+    PROXY_SERVER="" \
+    CHROME_EXTRA_ARGS="" \
+    REMOTE_DEBUGGING_PORT=9222
+
+# 使用清华大学源并安装基础依赖
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+    && apk update --allow-untrusted \
+    && apk add --no-cache --allow-untrusted \
+        bash sudo dcron \
+        xvfb x11vnc openbox \
+        novnc websockify \
+        ttf-dejavu fontconfig icu-data-full \
+        wqy-zenhei --repository http://mirrors.tuna.tsinghua.edu.cn/alpine/edge/testing \
+    && mkfontscale && mkfontdir && fc-cache
+
+# 安装glibc以支持fingerprint-chromium
+RUN apk add --no-cache ca-certificates --allow-untrusted \
+    && wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-2.35-r0.apk \
+    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-bin-2.35-r0.apk \
+    && wget -q https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-i18n-2.35-r0.apk \
+    && apk add --allow-untrusted glibc-bin-2.35-r0.apk glibc-i18n-2.35-r0.apk glibc-2.35-r0.apk \
+    && /usr/glibc-compat/bin/localedef -i zh_CN -f UTF-8 zh_CN.UTF-8 \
+    && rm -rf *.apk /var/cache/apk/*
+
+# 安装Chromium运行时依赖
+RUN apk add --no-cache --allow-untrusted \
+        nss freetype harfbuzz \
+        libx11 libxcomposite libxdamage libxi libxrandr libxrender libxtst \
+        libxext libxfixes \
+        mesa-gl mesa-dri-gallium \
+        alsa-lib \
+        eudev \
+    && rm -rf /var/cache/apk/*
+
+# Copy fingerprint-chromium from downloader stage
+COPY --from=downloader /opt/fingerprint-chromium /opt/fingerprint-chromium
+RUN ln -sf /opt/fingerprint-chromium/chrome /usr/local/bin/chrome
+
+# Create non-root user and setup directories
+RUN adduser -D -s /bin/bash browser \
+    && echo "browser ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chmod, /usr/bin/find, /bin/rm" >> /etc/sudoers \
+    && mkdir -p /home/browser/Downloads /home/browser/.chrome-data /home/browser/.chrome-profiles /tmp/.X11-unix \
+    && chmod 1777 /tmp/.X11-unix \
+    && chmod 755 /home/browser/.chrome-data /home/browser/.chrome-profiles \
+    && chown -R browser:browser /home/browser /opt/fingerprint-chromium
+
+# Copy startup and cleanup scripts
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/cleanup-cache.sh /usr/local/bin/cleanup-cache.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/cleanup-cache.sh
+
+EXPOSE 9222 5901 6081
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -sf http://127.0.0.1:${REMOTE_DEBUGGING_PORT}/json/version >/dev/null || exit 1
+
+USER browser
+WORKDIR /home/browser
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

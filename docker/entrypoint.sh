@@ -24,8 +24,10 @@ USER_DIR=${USER_DIR:-/home/browser/.chrome-data}
 PROFILE_DIR=${PROFILE_DIR:-/home/browser/.chrome-profiles/default}
 
 # Create user directories with proper permissions
-mkdir -p "${USER_DIR}" "${PROFILE_DIR}"
-chmod 755 "${USER_DIR}" "${PROFILE_DIR}" 2>/dev/null || true
+mkdir -p "${USER_DIR}" 2>/dev/null || true
+mkdir -p "$(dirname "${PROFILE_DIR}")" 2>/dev/null || true
+mkdir -p "${PROFILE_DIR}" 2>/dev/null || true
+chmod 755 "${USER_DIR}" "$(dirname "${PROFILE_DIR}")" "${PROFILE_DIR}" 2>/dev/null || true
 
 # Test if directory is writable
 if ! touch "${USER_DIR}/.test" 2>/dev/null; then

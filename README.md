@@ -21,7 +21,11 @@
 本地构建：
 
 ```bash
+# Ubuntu版本（推荐，更好的兼容性）
 docker build -t wuyaos/fingerprint-chromium-docker:latest .
+
+# Alpine版本（更小的镜像体积）
+docker build -f Dockerfile.alpine -t wuyaos/fingerprint-chromium-docker:alpine .
 ```
 
 运行容器：
@@ -36,10 +40,17 @@ docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
 或使用特定版本：
 
 ```bash
+# Ubuntu版本
 docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
   -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
   -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
   --name fpc wuyaos/fingerprint-chromium-docker:136.0.7103.113
+
+# Alpine版本（更小体积）
+docker run --rm -p 9222:9222 -p 6081:6081 -e VNC_PASSWORD=changeme \
+  -e FINGERPRINT_SEED=2025 -e FINGERPRINT_PLATFORM=linux \
+  -e FINGERPRINT_BRAND=Chrome -e BROWSER_LANG=zh-CN -e ACCEPT_LANG=zh-CN,zh \
+  --name fpc wuyaos/fingerprint-chromium-docker:136.0.7103.113-alpine
 ```
 
 在浏览器中打开noVNC界面：
@@ -135,11 +146,13 @@ docker run -d --name fpc \
 
 本仓库包含 .github/workflows/docker-build.yml，功能如下：
 
-- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本
-- 基于Ubuntu 22.04优化构建
+- 手动触发构建 (workflow_dispatch)，可配置fingerprint-chromium版本和基础镜像
+- 支持Ubuntu和Alpine两种基础镜像
 - 推送到Docker Hub：`wuyaos/fingerprint-chromium-docker`
 - 目标平台：linux/amd64（已移除QEMU以提高构建速度）
-- 提供标签：latest、版本号（如136.0.7103.113）、git标签、sha
+- 提供标签：
+  - Ubuntu: `latest`, `136.0.7103.113`
+  - Alpine: `latest-alpine`, `136.0.7103.113-alpine`
 
 所需的GitHub仓库密钥：
 
@@ -166,10 +179,11 @@ docker run -d --name fpc \
 - **运行阶段**：只包含运行时必需的文件
 - **效果**：避免构建工具污染最终镜像
 
-### 2. 精简基础镜像
-- 使用Ubuntu 22.04作为平衡选择（兼容性vs体积）
+### 2. 双基础镜像选择
+- **Ubuntu 22.04**：更好的兼容性，推荐用于生产环境
+- **Alpine Edge**：极致精简，镜像体积更小
+- 使用清华大学镜像源加速下载
 - 单层安装，减少镜像层数
-- 及时清理apt缓存和临时文件
 
 ### 3. 优化的.dockerignore
 - 忽略文档、示例、测试文件
