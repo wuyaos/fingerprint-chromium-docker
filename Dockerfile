@@ -28,8 +28,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     # 基础工具
         bash curl wget unzip openssl tzdata ca-certificates locales xz-utils \
-    # Chromium 依赖
-        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 libasound2 libxkbcommon0 libatspi2.0-0 libxcomposite1 libxrandr2 libx11-xcb1 libxtst6 libxdamage1 libpango-1.0-0 libcairo2 libpangocairo-1.0-0 \
+        # 安装Chromium以自动处理所有依赖项
+    chromium \
     # Supervisor
     supervisor \
     # X11和VNC相关
@@ -47,11 +47,14 @@ RUN apt-get update && \
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 下载并安装fingerprint-chromium
+ARG FC_VERSION=136.0.7103.113
 RUN mkdir -p /opt/fingerprint-chromium && \
-        wget -O /tmp/chromium.tar.xz "https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz" && \
+    wget -O /tmp/chromium.tar.xz "https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz" && \
     tar -xf /tmp/chromium.tar.xz -C /opt/fingerprint-chromium --strip-components=1 && \
     rm /tmp/chromium.tar.xz && \
-        ln -s /opt/fingerprint-chromium/chrome /usr/local/bin/fingerprint-chrome
+    ln -s /opt/fingerprint-chromium/chrome /usr/local/bin/fingerprint-chrome
+
+
 # 安装noVNC
 RUN mkdir -p /opt/novnc && \
     wget -qO- https://github.com/novnc/noVNC/archive/v1.4.0.tar.gz | tar xz --strip 1 -C /opt/novnc
