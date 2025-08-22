@@ -61,9 +61,16 @@ RUN useradd --create-home --shell /bin/bash chrome && \
     mkdir -p /home/chrome/.config/chrome /home/chrome/Downloads && \
     chown -R chrome:chrome /home/chrome
 
+# 配置浏览器策略以强制安装扩展
+RUN mkdir -p /etc/opt/chrome/policies/managed
+COPY config/policies.json /etc/opt/chrome/policies/managed/policies.json
+
 # 创建必要的目录
 RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d /tmp/.X11-unix && \
     chmod 1777 /tmp/.X11-unix
+
+# 将用户配置目录声明为VOLUME，以实现数据持久化
+VOLUME /home/chrome/.config/chrome
 
 # 复制配置和脚本文件
 COPY config/ /config/
@@ -86,5 +93,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 WORKDIR /root
 
 # 使用supervisor启动服务
-ENTRYPOINT ["supervisord", "-l", "/var/log/supervisord.log", "-c"]
-CMD ["/config/supervisord.conf"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["supervisord", "-c", "/config/supervisord.conf"]
