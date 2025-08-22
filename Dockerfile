@@ -23,9 +23,9 @@ ENV DISPLAY=:0 \
     NO_SLEEP=false
 
 # 安装基础依赖
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk update && \
-    apk add --no-cache \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+RUN apk update
+RUN apk add --no-cache \
     # 基础工具
     bash curl wget unzip openssl tzdata ca-certificates \
     # Supervisor
