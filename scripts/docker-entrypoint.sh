@@ -2,6 +2,7 @@
 set -e
 
 # Start D-Bus system bus to fix errors like "Failed to connect to the bus"
+mkdir -p /run/dbus
 if [ -f /var/run/dbus/pid ]; then
     rm -f /var/run/dbus/pid
 fi
