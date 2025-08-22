@@ -29,10 +29,12 @@ RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.li
     apt-get install -y --no-install-recommends \
     # 基础工具
         bash curl wget unzip openssl tzdata ca-certificates locales xz-utils \
+    # Chromium 依赖
+        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 libasound2 libxkbcommon0 libatspi2.0-0 libxcomposite1 \
     # Supervisor
     supervisor \
     # X11和VNC相关
-    xvfb x11vnc websockify openbox fonts-noto-cjk \
+        xvfb x11vnc websockify openbox fonts-noto-cjk dbus-x11 \
     # Python
     python3 python3-pip python3-requests && \
     # 配置 locales
@@ -50,7 +52,8 @@ RUN mkdir -p /opt/fingerprint-chromium && \
         wget -O /tmp/chromium.tar.xz "https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz" && \
     tar -xf /tmp/chromium.tar.xz -C /opt/fingerprint-chromium --strip-components=1 && \
     rm /tmp/chromium.tar.xz && \
-    ln -s /opt/fingerprint-chromium/chrome /usr/local/bin/fingerprint-chrome
+        ln -s /opt/fingerprint-chromium/chrome /usr/local/bin/fingerprint-chrome && \
+    ldd /opt/fingerprint-chromium/chrome
 
 # 安装noVNC
 RUN mkdir -p /opt/novnc && \
