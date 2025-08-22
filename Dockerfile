@@ -57,7 +57,7 @@ RUN mkdir -p /opt/fingerprint-chromium && \
 
 # 安装noVNC
 RUN mkdir -p /opt/novnc && \
-    wget -qO- https://github.com/novnc/noVNC/archive/v1.4.0.tar.gz | tar xz --strip 1 -C /opt/novnc
+    wget -qO- https://github.com/novnc/noVNC/archive/v1.6.0.tar.gz | tar xz --strip 1 -C /opt/novnc
 
 # 创建用户和目录
 RUN useradd --create-home --shell /bin/bash chrome && \
