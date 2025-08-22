@@ -1,5 +1,6 @@
 # History files
 .history/
+job-logs.txt
 
 # OS generated files
 .DS_Store

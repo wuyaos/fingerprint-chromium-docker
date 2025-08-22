@@ -23,7 +23,8 @@ ENV DISPLAY=:0 \
     NO_SLEEP=false
 
 # 安装基础依赖
-RUN apk update --no-cache && \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update && \
     apk add --no-cache \
     # 基础工具
     bash curl wget unzip openssl tzdata ca-certificates \
@@ -32,9 +33,9 @@ RUN apk update --no-cache && \
     # X11和VNC相关
     xvfb x11vnc websockify openbox ttf-noto-cjk \
     # Python
-    python3 py3-pip py3-requests \
+    python3 py3-pip py3-requests && \
     # 清理
-    && rm -rf /var/cache/apk/* /tmp/*
+    rm -rf /var/cache/apk/* /tmp/*
 
 # 设置时区
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && \
