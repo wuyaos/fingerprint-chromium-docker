@@ -1,200 +1,333 @@
-# Fingerprint Chromium Docker
+# fingerprint-chromium Docker Container
 
-基于webvnc的全新fingerprint-chromium Docker镜像，提供更好的VNC支持和用户体验。
+基于Docker的fingerprint-chromium浏览器容器，集成noVNC服务，专为DrissionPage自动化测试设计。
 
-## 🚀 新版本特性
+## 🌟 功能特性
 
-### 1. **基于成熟的webvnc基础镜像**
-- 使用 `xiuxiu10201/webvnc:latest` 作为基础镜像
-- 内置完整的VNC和noVNC支持
-- 更稳定的X11环境
+- **指纹伪装**: 集成fingerprint-chromium浏览器，具备强大的指纹伪装功能
+- **远程调试**: 开放Chrome调试端口(9222)，支持DrissionPage远程连接
+- **Web界面**: 集成noVNC服务，可通过Web浏览器实时查看自动化操作过程
+- **无密码访问**: 默认无密码配置，便于开发测试使用
+- **数据持久化**: 支持Chrome用户数据和下载文件持久化存储
+- **健康检查**: 内置健康检查机制，确保服务稳定运行
 
-### 2. **完整的PUID/PGID权限管理**
-- 智能处理用户权限
-- 支持root用户运行（PUID=0）
-- 自动用户创建和权限修复
+## 📋 系统要求
 
-### 3. **优化的启动流程**
-- 多阶段构建减小镜像体积
-- 智能服务启动顺序
-- 完整的健康检查
+- Docker 20.10+
+- Docker Compose 2.0+
+- 至少2GB可用内存
+- 至少5GB可用磁盘空间
 
-### 4. **增强的fingerprint保护**
-- 完整的fingerprint-chromium参数支持
-- 可配置的指纹保护选项
-- 支持代理和自定义参数
+## 🚀 快速开始
 
-## 📦 快速开始
+### 1. 克隆或下载项目文件
 
-### 构建和测试
-
-```bash
-# 一键构建和测试
-./build-and-test.sh all
-
-# 或分步执行
-./build-and-test.sh build   # 仅构建
-./build-and-test.sh test    # 仅测试
-./build-and-test.sh clean   # 清理
+确保你有以下文件结构：
+```
+fingerprint-chrome-docker/
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
+├── config/
+│   └── supervisord.conf
+└── scripts/
+    ├── entrypoint.sh
+    └── health-check.sh
 ```
 
-### 使用docker-compose
+### 2. 使用Docker Compose启动（推荐）
 
 ```bash
-# 设置用户权限
-export PUID=$(id -u)
-export PGID=$(id -g)
+# 创建必要的目录
+mkdir -p downloads chrome_data
 
-# 启动服务
-docker-compose -f docker-compose.yml up -d
+# 启动容器
+docker-compose up -d
 
 # 查看日志
-docker-compose -f docker-compose.yml logs -f
+docker-compose logs -f
 ```
 
-### 直接运行
+### 3. 使用Docker命令启动
 
 ```bash
-# 基础运行
-docker run -d --name fpc \
-  -p 9222:9222 -p 6080:6080 -p 5900:5900 \
-  -e PUID=$(id -u) -e PGID=$(id -g) \
-  -e FINGERPRINT_SEED=2025 \
-  fingerprint-chromium:latest
+# 构建镜像
+docker build -t fingerprint-chrome .
 
-# 带数据持久化（推荐）
-docker run -d --name fpc \
-  -p 9222:9222 -p 6080:6080 -p 5900:5900 \
-  -e PUID=$(id -u) -e PGID=$(id -g) \
-  -e FINGERPRINT_SEED=2025 \
-  -v $(pwd)/data/chrome-data:/data/chrome-data \
-  -v $(pwd)/data/chrome-profiles:/data/chrome-profiles \
-  wuyaos/fingerprint-chromium-docker:latest
+# 运行容器
+docker run -d \
+  --name fingerprint-chrome \
+  -p 6080:6080 \
+  -p 5900:5900 \
+  -p 9222:9222 \
+  --shm-size=2g \
+  -v $(pwd)/downloads:/home/chrome/Downloads \
+  -v $(pwd)/chrome_data:/home/chrome/.config/chrome \
+  fingerprint-chrome
 ```
+
+## 🔧 环境变量配置
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `SCREEN_WIDTH` | 1280 | 屏幕宽度 |
+| `SCREEN_HEIGHT` | 720 | 屏幕高度 |
+| `SCREEN_DEPTH` | 24 | 颜色深度 |
+| `VNC_PORT` | 5900 | VNC端口 |
+| `NOVNC_PORT` | 6080 | noVNC Web端口 |
+| `CHROME_DEBUG_PORT` | 9222 | Chrome调试端口 |
+| `VNC_PASSWORD` | 空 | VNC密码（空则无密码） |
+| `FINGERPRINT_SEED` | 1000 | 指纹种子 |
+| `FINGERPRINT_PLATFORM` | linux | 指纹平台 |
+| `TZ` | Asia/Shanghai | 时区 |
+| `LANG` | zh_CN.UTF-8 | 语言 |
 
 ## 🌐 访问方式
 
-启动后可通过以下方式访问：
+### Web界面访问（noVNC）
+- URL: http://localhost:6080
+- 无需密码，直接点击"连接"即可查看浏览器界面
 
-- **noVNC Web界面**: http://localhost:6080
-- **VNC客户端**: localhost:5900 (无密码)
-- **Chrome DevTools**: http://localhost:9222
-- **健康检查**: http://localhost:9222/json/version
+### VNC客户端访问
+- 地址: localhost:5900
+- 密码: 默认无密码（可通过VNC_PASSWORD环境变量设置）
 
-## ⚙️ 环境变量配置
+### Chrome调试端口
+- 地址: http://localhost:9222
+- 用于DrissionPage等自动化工具连接
 
-### 基础配置
-```bash
-DISPLAY=:0                    # X11显示
-NOVNC_PORT=6080              # noVNC web端口
-VNC_PORT=5900                # VNC端口
-CHROME_DEBUG_PORT=9222       # Chrome调试端口
-SCREEN_WIDTH=1280            # 屏幕宽度
-SCREEN_HEIGHT=800            # 屏幕高度
+## 🐍 DrissionPage连接示例
+
+```python
+from DrissionPage import ChromiumPage, ChromiumOptions
+
+# 配置Chrome选项
+co = ChromiumOptions()
+co.set_local_port(9222)  # 连接到容器的调试端口
+
+# 创建页面对象
+page = ChromiumPage(co)
+
+# 现在可以正常使用DrissionPage进行自动化操作
+page.get('https://www.example.com')
+print(page.title)
 ```
 
-### 权限管理
-```bash
-PUID=1000                    # 用户ID
-PGID=1000                    # 组ID
-UMASK_SET=022               # 文件权限掩码
+## 📁 目录挂载说明
+
+- `./downloads`: 浏览器下载目录，文件会保存到宿主机
+- `./chrome_data`: Chrome用户数据目录，保存浏览器配置和缓存
+- `/dev/shm`: 共享内存，提高性能
+
+## 🔍 指纹配置
+
+### 基本指纹设置
+通过环境变量配置指纹参数：
+
+```yaml
+environment:
+  - FINGERPRINT_SEED=2024        # 指纹种子，影响多项指纹特征
+  - FINGERPRINT_PLATFORM=windows # 操作系统平台
+  - TZ=America/New_York          # 时区设置
 ```
 
-### Fingerprint配置
+### 支持的指纹特征
+- User-Agent和平台信息
+- 操作系统版本
+- CPU核心数和内存信息
+- 音频指纹
+- WebGL图像和元数据
+- Canvas指纹
+- 字体列表
+- WebRTC配置
+- 语言和时区
+
+## 🛠️ 故障排除
+
+### 容器无法启动
 ```bash
-FINGERPRINT_SEED=1000        # 指纹种子
-FINGERPRINT_PLATFORM=linux  # 平台标识
-FINGERPRINT_BRAND=Chrome     # 浏览器品牌
-FINGERPRINT_BRAND_VERSION="" # 品牌版本
-BROWSER_LANG=zh-CN          # 浏览器语言
-ACCEPT_LANG=zh-CN,zh        # 接受语言
+# 检查容器状态
+docker-compose ps
+
+# 查看详细日志
+docker-compose logs fingerprint-chrome
 ```
 
-### 网络配置
-```bash
-PROXY_SERVER=""             # 代理服务器
-CHROME_EXTRA_ARGS=""        # 额外Chrome参数
+### 无法访问Web界面
+1. 确认端口映射正确：`docker port fingerprint-chrome`
+2. 检查防火墙设置
+3. 确认容器健康状态：`docker-compose ps`
+
+### DrissionPage连接失败
+1. 确认9222端口已开放
+2. 检查Chrome调试接口：`curl http://localhost:9222/json`
+3. 确认容器内Chrome进程正常运行
+
+### 性能优化
+1. 增加共享内存大小：`shm_size: 4gb`
+2. 调整屏幕分辨率以降低资源消耗
+3. 限制容器资源使用：
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 4G
+      cpus: '2.0'
 ```
 
-## 🔧 高级用法
+## 📊 监控和日志
 
-### 1. 无头模式运行
+### 健康检查
+容器内置健康检查，监控以下服务：
+- X Server (Xvfb)
+- VNC Server
+- noVNC Web服务
+- Chrome调试端口
+- Chrome进程
+
+### 日志查看
 ```bash
-docker run -d --name fpc-headless \
-  -p 9223:9222 \
-  -e CHROME_EXTRA_ARGS="--headless --disable-gpu" \
-  -e FINGERPRINT_SEED=3000 \
-  fingerprint-chromium-new:latest
+# 查看实时日志
+docker-compose logs -f
+
+# 查看特定服务日志
+docker-compose logs fingerprint-chrome
+
+# 进入容器查看详细日志
+docker-compose exec fingerprint-chrome bash
+tail -f /var/log/supervisor/*.log
 ```
 
-### 2. 使用代理
+## 🔒 安全考虑
+
+1. **生产环境建议**：
+   - 设置VNC密码
+   - 限制网络访问
+   - 使用防火墙规则
+
+2. **网络安全**：
+   - 仅在可信网络中使用
+   - 考虑使用VPN或SSH隧道
+
+3. **数据安全**：
+   - 定期备份用户数据
+   - 避免在浏览器中保存敏感信息
+
+## 🚀 自动化部署
+
+### 使用构建脚本
 ```bash
-docker run -d --name fpc-proxy \
-  -p 9222:9222 -p 6081:6081 \
-  -e PROXY_SERVER="http://proxy.example.com:8080" \
-  -e FINGERPRINT_SEED=4000 \
-  fingerprint-chromium-new:latest
+# 构建镜像
+./scripts/build.sh
+
+# 部署容器
+./scripts/deploy.sh start
+
+# 查看状态
+./scripts/deploy.sh status
+
+# 查看日志
+./scripts/deploy.sh logs
+
+# 停止容器
+./scripts/deploy.sh stop
 ```
 
-### 3. 自定义Chrome参数
+### 使用示例代码
 ```bash
-docker run -d --name fpc-custom \
-  -p 9222:9222 -p 6081:6081 \
-  -e CHROME_EXTRA_ARGS="--disable-web-security --allow-running-insecure-content" \
-  fingerprint-chromium-new:latest
+# 安装Python依赖
+pip install -r examples/requirements.txt
+
+# 运行DrissionPage连接测试
+python examples/drissionpage_example.py
 ```
 
-## 🛠️ 开发和调试
+## 📁 项目结构
 
-### 进入容器
-```bash
-docker-compose -f docker-compose.new.yml exec fingerprint-chromium-new bash
+```
+fingerprint-chrome-docker/
+├── Dockerfile                    # Docker镜像构建文件
+├── docker-compose.yml           # Docker Compose配置
+├── README.md                    # 项目文档
+├── config/                      # 配置文件目录
+│   └── supervisord.conf        # Supervisor配置
+├── scripts/                     # 脚本目录
+│   ├── entrypoint.sh           # 容器启动脚本
+│   ├── health-check.sh         # 健康检查脚本
+│   ├── build.sh                # 构建脚本
+│   └── deploy.sh               # 部署脚本
+├── examples/                    # 示例代码
+│   ├── drissionpage_example.py # DrissionPage连接示例
+│   └── requirements.txt        # Python依赖
+├── downloads/                   # 浏览器下载目录（自动创建）
+├── chrome_data/                # Chrome数据目录（自动创建）
+└── logs/                       # 日志目录（自动创建）
 ```
 
-### 查看日志
-```bash
-# 容器日志
-docker-compose -f docker-compose.new.yml logs -f
+## 🔧 高级配置
 
-# Chrome日志
-docker exec fpc-new cat /tmp/fingerprint-chromium.log
+### 自定义指纹参数
+```yaml
+# docker-compose.yml
+environment:
+  - FINGERPRINT_SEED=2024
+  - FINGERPRINT_PLATFORM=windows
+  - TZ=America/New_York
+  - SCREEN_WIDTH=1920
+  - SCREEN_HEIGHT=1080
 ```
 
-### 重启服务
+### 代理设置
+在Chrome启动参数中添加代理：
 ```bash
-docker-compose -f docker-compose.new.yml restart
+# 修改entrypoint.sh中的Chrome启动参数
+"--proxy-server=http://proxy:port"
 ```
 
-## 🔍 故障排除
-
-### 1. 权限问题
-确保设置了正确的PUID/PGID：
-```bash
-export PUID=$(id -u)
-export PGID=$(id -g)
-```
-
-### 2. VNC连接问题
-检查VNC密码和端口：
-```bash
-docker logs fpc-new | grep vnc
-```
-
-### 3. Chrome启动问题
-查看Chrome日志：
-```bash
-docker exec fpc-new cat /tmp/fingerprint-chromium.log
+### 性能优化
+```yaml
+# docker-compose.yml
+deploy:
+  resources:
+    limits:
+      memory: 4G
+      cpus: '2.0'
+shm_size: 4gb
 ```
 
 ## 📝 更新日志
 
-### v2.0.0 (新版本)
-- 基于webvnc重构
-- 完整的PUID/PGID支持
-- 智能启动流程
-- 增强的错误处理
-- 完整的健康检查
+- v1.0.0: 初始版本，集成fingerprint-chromium和noVNC
+- 支持Chrome 138版本
+- 完整的指纹伪装功能
+- DrissionPage远程连接支持
+- 集成noVNC Web界面
+- 自动化构建和部署脚本
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request来改进这个项目。
+
+### 开发指南
+1. Fork本项目
+2. 创建功能分支：`git checkout -b feature/new-feature`
+3. 提交更改：`git commit -am 'Add new feature'`
+4. 推送分支：`git push origin feature/new-feature`
+5. 提交Pull Request
+
+## 📞 支持
+
+如果您在使用过程中遇到问题，请：
+1. 查看[故障排除](#-故障排除)部分
+2. 搜索已有的[Issues](https://github.com/your-repo/issues)
+3. 创建新的Issue并提供详细信息
 
 ## 📄 许可证
 
-MIT License
+本项目基于MIT许可证开源。fingerprint-chromium基于BSD-3-Clause许可证。
+
+## 🙏 致谢
+
+- [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium) - 提供指纹浏览器
+- [noVNC](https://github.com/novnc/noVNC) - 提供Web VNC客户端
+- [DrissionPage](https://github.com/g1879/DrissionPage) - 提供自动化测试框架

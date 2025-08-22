@@ -93,6 +93,9 @@ venv.bak/
 # Local data directories
 data/
 profiles/
+chrome_data/
+downloads/
+logs/
 
 # Temporary files
 *.tmp

@@ -1,38 +1,84 @@
 version: '3.8'
 
 services:
-  # fingerprint-chromium（基于webvnc）
-  fingerprint-chromium:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        FC_VERSION: "136.0.7103.113"
-    container_name: fingerprint-chromium
+  fingerprint-chrome:
+    build: .
+    container_name: fingerprint-chrome-container
+    restart: unless-stopped
+    
+    # 端口映射
     ports:
-      - "9222:9222"  # Chrome DevTools Protocol
-      - "6080:6080"  # noVNC web interface
-      - "5900:5900"  # VNC direct access
+      - "6080:6080"    # noVNC Web界面
+      - "5900:5900"    # VNC端口
+      - "9222:9222"    # Chrome调试端口
+    
+    # 环境变量配置
     environment:
-      - FINGERPRINT_SEED=2025
-      - FINGERPRINT_PLATFORM=linux
-      - FINGERPRINT_BRAND=Chrome
-      - BROWSER_LANG=zh-CN
-      - ACCEPT_LANG=zh-CN,zh
+      # 显示设置
+      - DISPLAY=:0
       - SCREEN_WIDTH=1920
       - SCREEN_HEIGHT=1080
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-      - UMASK_SET=022
-      # - PROXY_SERVER=http://proxy:8080
-      # - CHROME_EXTRA_ARGS=--disable-web-security
+      - SCREEN_DEPTH=24
+      
+      # 网络端口
+      - VNC_PORT=5900
+      - NOVNC_PORT=6080
+      - CHROME_DEBUG_PORT=9222
+      
+      # VNC密码（可选，留空则无密码）
+      - VNC_PASSWORD=
+      
+      # 指纹配置
+      - FINGERPRINT_SEED=1000
+      - FINGERPRINT_PLATFORM=linux
+      
+      # 时区和语言
+      - TZ=Asia/Shanghai
+      - LANG=zh_CN.UTF-8
+      - LANGUAGE=zh_CN:zh
+      - LC_ALL=zh_CN.UTF-8
+    
+    # 卷挂载
     volumes:
-      - ./data/chrome-data:/data/chrome-data
-      - ./data/chrome-profiles:/data/chrome-profiles
-    restart: unless-stopped
+      # Chrome用户数据持久化
+      - chrome_data:/home/chrome/.config/chrome
+      # 下载目录
+      - ./downloads:/home/chrome/Downloads
+      # 共享内存
+      - /dev/shm:/dev/shm
+    
+    # 共享内存大小设置
+    shm_size: 2gb
+    
+    # 安全设置
+    security_opt:
+      - seccomp:unconfined
+    
+    # 健康检查
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9222/json/version"]
+      test: ["CMD", "/usr/local/bin/health-check.sh"]
       interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 网络模式
+    network_mode: bridge
+
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+# 数据卷定义
+volumes:
+  chrome_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./chrome_data
+
+# 网络定义（可选）
+networks:
+  default:
+    driver: bridge
