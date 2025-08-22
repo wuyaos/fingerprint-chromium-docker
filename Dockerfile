@@ -1,6 +1,6 @@
 # fingerprint-chromium Docker Container with noVNC
-# 基于Alpine构建，集成fingerprint-chromium浏览器和noVNC服务
-FROM alpine:3.20
+# 基于 Debian 构建，集成 fingerprint-chromium 浏览器和 noVNC 服务
+FROM debian:bullseye-slim
 
 LABEL maintainer="fingerprint-chromium-docker"
 LABEL description="fingerprint-chromium browser with noVNC for DrissionPage automation"
@@ -19,29 +19,29 @@ ENV DISPLAY=:0 \
     TZ="Asia/Shanghai" \
     LANG=zh_CN.UTF-8 \
     LANGUAGE=zh_CN:zh \
-    LC_ALL=C.UTF-8 \
+    LC_ALL=zh_CN.UTF-8 \
     NO_SLEEP=false
 
-USER root
-
 # 安装基础依赖
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
-RUN apk update
-RUN apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     # 基础工具
-    bash curl wget unzip openssl tzdata ca-certificates \
+    bash curl wget unzip openssl tzdata ca-certificates locales \
     # Supervisor
     supervisor \
     # X11和VNC相关
-    xvfb x11vnc websockify openbox ttf-noto-cjk \
+    xvfb x11vnc websockify openbox fonts-noto-cjk \
     # Python
-    python3 py3-pip py3-requests && \
+    python3 python3-pip python3-requests && \
+    # 配置 locales
+    sed -i -e 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen && \
     # 清理
-    rm -rf /var/cache/apk/* /tmp/*
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/*
 
 # 设置时区
-RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo $TZ > /etc/timezone
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 下载并安装fingerprint-chromium
 RUN mkdir -p /opt/fingerprint-chromium && \
@@ -55,7 +55,7 @@ RUN mkdir -p /opt/novnc && \
     wget -qO- https://github.com/novnc/noVNC/archive/v1.4.0.tar.gz | tar xz --strip 1 -C /opt/novnc
 
 # 创建用户和目录
-RUN adduser -D -s /bin/bash chrome && \
+RUN useradd --create-home --shell /bin/bash chrome && \
     mkdir -p /home/chrome/.config/chrome /home/chrome/Downloads && \
     chown -R chrome:chrome /home/chrome
 
