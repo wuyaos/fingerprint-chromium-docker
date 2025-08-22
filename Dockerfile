@@ -28,7 +28,7 @@ RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.li
     apt-get update && \
     apt-get install -y --no-install-recommends \
     # 基础工具
-    bash curl wget unzip openssl tzdata ca-certificates locales \
+        bash curl wget unzip openssl tzdata ca-certificates locales xz-utils \
     # Supervisor
     supervisor \
     # X11和VNC相关
