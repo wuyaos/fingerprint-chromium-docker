@@ -23,7 +23,9 @@ ENV DISPLAY=:0 \
     NO_SLEEP=false
 
 # 安装基础依赖
-RUN apt-get update && \
+ARG FC_VERSION=136.0.7103.113
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     # 基础工具
     bash curl wget unzip openssl tzdata ca-certificates locales \
@@ -45,7 +47,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 下载并安装fingerprint-chromium
 RUN mkdir -p /opt/fingerprint-chromium && \
-    wget -O /tmp/chromium.tar.xz "https://github.com/adryfish/fingerprint-chromium/releases/download/138.0.7204.183/ungoogled-chromium_138.0.7204.183-1_linux.tar.xz" && \
+        wget -O /tmp/chromium.tar.xz "https://github.com/adryfish/fingerprint-chromium/releases/download/${FC_VERSION}/ungoogled-chromium_${FC_VERSION}-1_linux.tar.xz" && \
     tar -xf /tmp/chromium.tar.xz -C /opt/fingerprint-chromium --strip-components=1 && \
     rm /tmp/chromium.tar.xz && \
     ln -s /opt/fingerprint-chromium/chrome /usr/local/bin/fingerprint-chrome
