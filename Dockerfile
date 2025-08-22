@@ -22,6 +22,8 @@ ENV DISPLAY=:0 \
     LC_ALL=C.UTF-8 \
     NO_SLEEP=false
 
+USER root
+
 # 安装基础依赖
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk update
